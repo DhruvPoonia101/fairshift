@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b5cad">
+  <title data-i18n="admin.title">FairShift - Employer</title>
+  <link rel="stylesheet" href="/shared/base.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="/">FairShift</a>
+      <div class="row">
+        <span id="org-name" class="muted"></span>
+        <div class="lang" id="lang"></div>
+        <button id="logout" class="btn" type="button" data-i18n="common.logout">Log out</button>
+      </div>
+    </div>
+  </header>
+  <div class="container layout">
+    <nav class="sidebar" aria-label="Sections" data-i18n-attr="aria-label:admin.menu"><ul id="nav"></ul></nav>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <noscript><p class="container">FairShift needs JavaScript. / कृपया JavaScript चालू करें।</p></noscript>
+  <script type="module" src="/admin/app.js"></script>
+</body>
+</html>

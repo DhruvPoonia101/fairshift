@@ -1,0 +1,38 @@
+/* Employer dashboard: desktop first, collapses to one column on phones. */
+.layout { display: grid; grid-template-columns: 14.5rem minmax(0, 1fr); gap: 1.5rem; padding-top: 1.25rem; padding-bottom: 2rem; align-items: start; }
+main { outline: none; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.sidebar ul { display: flex; flex-direction: column; gap: 0.25rem; position: sticky; top: 1rem; }
+.sidebar a { display: flex; align-items: center; gap: 0.6rem; min-height: 3rem; padding: 0.5rem 0.75rem; border-radius: var(--radius); color: var(--text); text-decoration: none; font-weight: 600; }
+.sidebar a:hover { background: var(--primary-soft); }
+.sidebar a[aria-current="page"] { background: var(--primary-soft); color: var(--primary); box-shadow: inset 4px 0 0 var(--primary); }
+
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .sidebar ul { position: static; flex-direction: row; flex-wrap: wrap; }
+}
+
+.kpi { display: flex; flex-direction: column; gap: 0.25rem; text-decoration: none; color: var(--text); }
+.kpi .row { color: var(--primary); }
+.kpi .big { color: var(--text); }
+a.kpi:hover { background: var(--primary-soft); }
+
+.chart { width: 100%; height: auto; }
+.chart text { fill: var(--text); font-size: 11px; text-anchor: middle; }
+.chart .grid-line { stroke: var(--line); stroke-width: 1; }
+.chart rect.bar { fill: var(--primary); }
+.chart rect.today { stroke: var(--text); stroke-width: 2; }
+
+.qr-card img { width: min(100%, 16rem); height: auto; background: #fff; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--line); }
+.code-big { font-size: 2.5rem; font-weight: 800; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+
+progress { width: 100%; height: 1rem; accent-color: var(--primary); }
+.reasons li { display: flex; gap: 0.5rem; align-items: baseline; }
+.reasons .pts { font-weight: 700; white-space: nowrap; }
+td .chip, td .btn { white-space: nowrap; }
+.cell-wide { min-width: 14rem; }
+.person { display: flex; flex-direction: column; gap: 0.5rem; }
+
+@media print {
+  .sidebar, .site-header, .no-print { display: none !important; }
+  .layout { display: block; }
+}

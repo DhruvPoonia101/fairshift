@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b5cad">
+  <meta name="description" content="FairShift: clear pay, safe reporting and fair shifts for workers and employers.">
+  <title data-i18n="landing.title">FairShift - Fair pay, safe work</title>
+  <link rel="stylesheet" href="/shared/base.css">
+  <link rel="stylesheet" href="/landing.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
+  <header class="site-header">
+    <div class="container">
+      <span class="brand">FairShift</span>
+      <div class="lang" id="lang"></div>
+    </div>
+  </header>
+  <main id="main" class="container stack" tabindex="-1">
+    <section class="hero stack" aria-labelledby="hero-title">
+      <h1 id="hero-title" data-i18n="landing.headline">Know your pay. Speak up safely. Work fair hours.</h1>
+      <p data-i18n="landing.sub">FairShift helps workers and employers in construction, colleges, hospitals and factories.</p>
+      <div class="choices">
+        <button type="button" class="btn btn-primary btn-lg" id="pick-worker" aria-expanded="false" aria-controls="panel-worker" data-role="worker"><span data-i18n="landing.worker">I am a worker</span></button>
+        <button type="button" class="btn btn-lg" id="pick-admin" aria-expanded="false" aria-controls="panel-admin" data-role="admin"><span data-i18n="landing.employer">I am an employer</span></button>
+      </div>
+      <p id="need" class="banner" role="status" hidden></p>
+      <section id="panel-worker" class="card stack" hidden aria-labelledby="pick-worker"></section>
+      <section id="panel-admin" class="card stack" hidden aria-labelledby="pick-admin"></section>
+    </section>
+
+    <section class="stack" aria-labelledby="feat-title">
+      <h2 id="feat-title" data-i18n="landing.featuresTitle">What FairShift does</h2>
+      <ul class="grid" id="features"></ul>
+    </section>
+
+    <section class="stack" aria-labelledby="ind-title">
+      <h2 id="ind-title" data-i18n="landing.industriesTitle">Use in two industries</h2>
+      <div class="grid" id="industries"></div>
+      <p class="muted" data-i18n="landing.more">The same app works for hospitals and factories: only the settings change, not the code.</p>
+    </section>
+  </main>
+  <footer class="container muted foot"><p data-i18n="landing.footer">SDG 8: Decent work and economic growth. Prototype for Prompt Wars 2026 x SRM ACM.</p></footer>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <noscript><p class="container">FairShift needs JavaScript. / कृपया JavaScript चालू करें।</p></noscript>
+  <script type="module" src="/landing.js"></script>
+</body>
+</html>
