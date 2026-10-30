@@ -97,6 +97,13 @@ svg.icon { width: 1.5rem; height: 1.5rem; flex: none; fill: none; stroke: curren
 
 .chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.875rem; font-weight: 600; border: 1px solid currentColor; background: var(--surface); color: var(--muted); }
 .chip svg.icon { width: 1rem; height: 1rem; }
+.chip-lg { font-size: 1.125rem; padding: 0.4rem 0.9rem; }
+.amounts { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 1rem; margin: 0; }
+.amounts dd { margin: 0; text-align: end; font-weight: 700; }
+.amounts dt { color: var(--muted); }
+.amounts .short { color: var(--danger); }
+.timeline { display: flex; flex-direction: column; gap: 0.75rem; margin-inline-start: 0.5rem; padding-inline-start: 0; border-inline-start: 3px solid var(--line); }
+.timeline li { display: flex; gap: 0.5rem; padding-inline-start: 0.75rem; }
 .chip-ok { color: var(--ok); background: var(--ok-soft); }
 .chip-warn { color: var(--warn); background: var(--warn-soft); }
 .chip-danger { color: var(--danger); background: var(--danger-soft); }

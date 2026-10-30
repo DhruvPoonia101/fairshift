@@ -1,4 +1,6 @@
 import { createAttendanceService } from './attendance.js';
+import { createAuditService } from './audit.js';
+import { createDisputeService } from './disputes.js';
 import { createFeedbackService } from './feedback.js';
 import { createGrievanceService } from './grievance.js';
 import { createInsightsService } from './insights.js';
@@ -14,13 +16,18 @@ export function createServices({ store, clock, env, fetchImpl }) {
   const credentials = createSiteCredentials({ secret: env.sessionSecret, clock });
   const passport = createPassportService({ store, clock });
   const feedback = createFeedbackService({ store, clock });
+  const audit = createAuditService({ store, clock });
+  const attendance = createAttendanceService({ store, clock, credentials, audit, skipButtonGeofence: env.demoMode });
+  const payroll = createPayrollService({ store, clock });
   return {
     credentials,
     passport,
     feedback,
-    attendance: createAttendanceService({ store, clock, credentials, skipButtonGeofence: env.demoMode }),
-    payroll: createPayrollService({ store }),
+    audit,
+    attendance,
+    payroll,
+    disputes: createDisputeService({ store, clock, audit, attendance, payroll }),
     grievance: createGrievanceService({ store, clock, secret: env.sessionSecret }),
-    insights: createInsightsService({ store, clock, passport, feedback, env, fetchImpl }),
+    insights: createInsightsService({ store, clock, passport, feedback, payroll, env, fetchImpl }),
   };
 }

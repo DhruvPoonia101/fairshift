@@ -1,8 +1,12 @@
-import { MS_PER_DAY, MS_PER_MINUTE } from '../config/constants.js';
+import { MINUTES_PER_HOUR, MS_PER_DAY, MS_PER_MINUTE } from '../config/constants.js';
 import { SECTORS, findCategory, findShift } from '../config/sectors.js';
 import { createPrng, hashString, randomToken } from '../lib/random.js';
-import { addDays, dayKey, dayStartMs, monthKey, previousMonth, weekdayOf } from '../lib/time.js';
+import { addDays, dayKey, dayStartMs, monthBounds, monthKey, previousMonth, weekdayOf } from '../lib/time.js';
+import { buildAuditEntry } from '../services/audit.js';
+import { expectedPay } from '../services/compliance.js';
+import { COLLECTION_NAMES } from './repository.js';
 import { suggestSeverity } from '../services/grievance.js';
+import { computePayslip } from '../services/payroll.js';
 
 /**
  * Deterministic demo data. Dates are relative to "today" (IST) and all randomness comes from a
@@ -14,6 +18,9 @@ import { suggestSeverity } from '../services/grievance.js';
  *  - attrB: new joiner, late, disputed a payslip
  *  - nightRun: four night shifts in a row, then a morning shift two hours after the last one
  *  - overtime: long shifts every working day this week
+ *
+ * Last month's payments are seeded as correct except for the workers in `payFlags`, whose pay is
+ * deliberately wrong (overtime paid at the normal rate, or a day not paid) so the compliance check has cases to show.
  *
  * Seeding is idempotent: an org that already exists is left alone, and its org document is written
  * last, so a crash half way through is repaired by the next start. That makes it safe to run on
@@ -35,6 +42,15 @@ const NIGHT_RUN_NIGHTS = 4;
 const MORNING_START_MINUTE = 7 * 60;
 const WRITE_CONCURRENCY = 100;
 
+/** Demo attendance disputes, one per listed worker: waiting, under review, and already rejected. */
+const DEMO_DISPUTES = [
+  { who: 0, status: 'submitted', claimMore: 90, note: 'I stayed to finish the work and left an hour and a half later than recorded.' },
+  { who: 3, status: 'under_review', claimMore: 60, note: 'I covered for a colleague and worked an extra hour.' },
+  { who: 6, status: 'rejected', claimMore: 120, note: 'My check-out was missed at the gate.', decisionNote: 'The gate log shows you left at the recorded time.' },
+];
+const DISPUTE_MIN_AGE_DAYS = 2;
+const DISPUTE_MAX_AGE_DAYS = 10;
+
 const w = (name, role, profile, shiftId, siteIdx = 0) => ({ name, role, profile, shiftId, siteIdx });
 
 const ORGS = [
@@ -44,6 +60,7 @@ const ORGS = [
     adminId: 'adm-con',
     adminName: 'Anita Menon',
     abbr: 'con',
+    payFlags: { 0: 'overtime_normal_rate', 7: 'overtime_normal_rate', 1: 'missing_day' },
     workers: [
       w('Ravi Kumar', 'mason', 'amber', 'day'),
       w('Suresh Patel', 'electrician', 'normal', 'day'),
@@ -91,6 +108,7 @@ const ORGS = [
     adminId: 'adm-col',
     adminName: 'Rahul Verma',
     abbr: 'col',
+    payFlags: { 0: 'overtime_normal_rate', 7: 'overtime_normal_rate', 2: 'missing_day' },
     workers: [
       w('Sunita Devi', 'housekeeping', 'amber', 'morning'),
       w('Rajesh Kumar', 'security', 'normal', 'night'),
@@ -139,6 +157,7 @@ const ORGS = [
     adminName: 'Dr. Kavita Rao',
     abbr: 'hos',
     offDays: 2,
+    payFlags: { 0: 'overtime_normal_rate', 8: 'overtime_normal_rate', 1: 'missing_day' },
     workers: [
       w('Priya Menon', 'nurse', 'amber', 'morning'),
       w('Anita Joseph', 'nurse', 'normal', 'night'),
@@ -269,6 +288,24 @@ function passportFor(spec, worker, index, today, orgId) {
   return entries;
 }
 
+/** What the employer paid for last month: the expected amount, except where the demo needs a mistake. */
+function paymentFor(spec, worker, shifts, nowMs, flag) {
+  const month = previousMonth(monthKey(nowMs));
+  const { startMs, endMs } = monthBounds(month);
+  const rules = SECTORS[spec.sector].wageRules;
+  const inMonth = shifts.filter((s) => s.checkIn >= startMs && s.checkIn < endMs);
+  const slip = computePayslip({ worker, shifts: inMonth, overtimeMultiplierPct: rules.overtimeMultiplierPct });
+  const expected = expectedPay(slip, rules);
+  let paidRegularPaise = expected.regularPaise;
+  let paidOvertimePaise = expected.overtimePaise;
+  if (flag === 'overtime_normal_rate' && slip.totals.overtimeMinutes > 0) {
+    paidOvertimePaise = Math.round((expected.hourlyRatePaise * slip.totals.overtimeMinutes) / MINUTES_PER_HOUR);
+  } else if (flag) {
+    paidRegularPaise = Math.max(0, expected.regularPaise - worker.dailyWagePaise);
+  }
+  return { id: `pay-${worker.id}-${month}`, orgId: worker.orgId, workerId: worker.id, month, paidRegularPaise, paidOvertimePaise };
+}
+
 function advancesFor(worker, profile, nowMs, orgId) {
   const advance = (month, amountPaise, note) => ({
     id: `adv-${worker.id}-${month}`,
@@ -306,6 +343,42 @@ function grievanceDocs(spec, workers, nowMs) {
   });
 }
 
+function disputeDocs(spec, workers, shiftsByWorker, nowMs) {
+  const today = dayKey(nowMs);
+  const out = [];
+  DEMO_DISPUTES.forEach((seed, index) => {
+    const worker = workers[seed.who];
+    const shift = (shiftsByWorker.get(worker.id) ?? [])
+      .filter((s) => s.checkOut !== null && dayKey(s.checkIn) <= addDays(today, -DISPUTE_MIN_AGE_DAYS) && dayKey(s.checkIn) >= addDays(today, -DISPUTE_MAX_AGE_DAYS))
+      .sort((a, b) => b.checkIn - a.checkIn)[0];
+    if (!shift) return;
+    const createdAt = nowMs - (index + 1) * MS_PER_DAY * 0.5;
+    const original = { checkIn: shift.checkIn, checkOut: shift.checkOut, siteId: shift.siteId };
+    const claimed = { ...original, checkOut: shift.checkOut + seed.claimMore * MS_PER_MINUTE };
+    const id = `dp-${spec.abbr}-${index + 1}`;
+    const entry = (k, at, actorRole, actorId, action, extra = {}) =>
+      buildAuditEntry({ id: `au-${id}-${k}`, orgId: spec.id, workerId: worker.id, at, actorRole, actorId, action, disputeId: id, shiftId: shift.id, ...extra });
+    const decided = seed.status === 'rejected';
+    const decidedAt = createdAt + 6 * 60 * MS_PER_MINUTE;
+    out.push({
+      collection: 'disputes',
+      doc: {
+        id, orgId: spec.id, workerId: worker.id, shiftId: shift.id, category: 'wrong_time', original, claimed, note: seed.note,
+        status: seed.status, createdAt, updatedAt: decided ? decidedAt : createdAt + 60 * MS_PER_MINUTE,
+        decidedAt: decided ? decidedAt : null, decidedBy: decided ? spec.adminId : null, decisionNote: seed.decisionNote ?? '',
+      },
+    });
+    out.push({ collection: 'audit', doc: entry(1, createdAt, 'worker', worker.id, 'dispute_submitted', { before: original, after: claimed, note: seed.note, details: { category: 'wrong_time' } }) });
+    if (seed.status !== 'submitted') {
+      out.push({ collection: 'audit', doc: entry(2, createdAt + 60 * MS_PER_MINUTE, 'admin', spec.adminId, 'dispute_review_started') });
+    }
+    if (decided) {
+      out.push({ collection: 'audit', doc: entry(3, decidedAt, 'admin', spec.adminId, 'dispute_rejected', { note: seed.decisionNote }) });
+    }
+  });
+  return out;
+}
+
 /** Every document of one demo org except the org record itself, as `{ collection, doc }` pairs. */
 function orgDocs(spec, nowMs) {
   const today = dayKey(nowMs);
@@ -316,6 +389,7 @@ function orgDocs(spec, nowMs) {
   for (const site of sector.sites) out.push({ collection: 'sites', doc: { ...site, orgId: spec.id } });
 
   const workers = [];
+  const shiftsByWorker = new Map();
   for (const [index, ws] of spec.workers.entries()) {
     const roleDef = sector.roles.find((r) => r.id === ws.role);
     const offDays = spec.offDays ?? 1;
@@ -335,12 +409,15 @@ function orgDocs(spec, nowMs) {
     workers.push(worker);
     out.push({ collection: 'workers', doc: worker });
     const shifts = buildShifts({ spec, worker, profile: ws.profile, weekOffs, orgId: spec.id, today, nowMs, prng, counter });
+    shiftsByWorker.set(worker.id, shifts);
     for (const doc of shifts) out.push({ collection: 'shifts', doc });
+    out.push({ collection: 'payments', doc: paymentFor(spec, worker, shifts, nowMs, spec.payFlags?.[index]) });
     for (const doc of passportFor(spec, worker, index, today, spec.id)) out.push({ collection: 'passportEntries', doc });
     for (const doc of advancesFor(worker, ws.profile, nowMs, spec.id)) out.push({ collection: 'advances', doc });
   }
 
   out.push(...grievanceDocs(spec, workers, nowMs));
+  out.push(...disputeDocs(spec, workers, shiftsByWorker, nowMs));
   spec.feedback.forEach(([subject, rating, text], index) => {
     const n = index + 1;
     out.push({
@@ -370,10 +447,30 @@ export async function seedStore(store, { clock }) {
   const seeded = [];
   for (const spec of ORGS) {
     if (await store.orgs.get(spec.id, spec.id)) continue;
-    await writeAll(store, orgDocs(spec, clock.now()));
-    const sector = SECTORS[spec.sector];
-    await store.orgs.insert({ id: spec.id, orgId: spec.id, name: sector.orgName, sector: spec.sector });
+    await seedOrgSpec(store, spec, clock);
     seeded.push(spec.id);
   }
   return seeded;
+}
+
+async function seedOrgSpec(store, spec, clock) {
+  await writeAll(store, orgDocs(spec, clock.now()));
+  await store.orgs.insert({ id: spec.id, orgId: spec.id, name: SECTORS[spec.sector].orgName, sector: spec.sector });
+}
+
+export const DEMO_ORG_IDS = Object.freeze(ORGS.map((o) => o.id));
+
+/**
+ * Deletes everything of ONE demo org and seeds it again, with every date anchored to today.
+ * Only that org's documents are touched (each delete is scoped by orgId). The org record goes
+ * first, so a failure half way leaves the org looking unseeded and the next start rebuilds it.
+ * @returns {Promise<boolean>} false if `orgId` is not a demo org (nothing is deleted then)
+ */
+export async function resetDemoOrg(store, orgId, { clock }) {
+  const spec = ORGS.find((o) => o.id === orgId);
+  if (!spec) return false;
+  await store.orgs.deleteByOrg(orgId);
+  await Promise.all(COLLECTION_NAMES.filter((name) => name !== 'orgs').map((name) => store[name].deleteByOrg(orgId)));
+  await seedOrgSpec(store, spec, clock);
+  return true;
 }

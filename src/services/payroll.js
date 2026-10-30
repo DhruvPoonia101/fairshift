@@ -1,8 +1,9 @@
 import { MINUTES_PER_HOUR, PAYROLL, REGULAR_SHIFT_MINUTES } from '../config/constants.js';
 import { getSector } from '../config/sectors.js';
 import { notFound } from '../lib/errors.js';
-import { dayKey, monthBounds } from '../lib/time.js';
+import { dayKey, monthBounds, monthKey, previousMonth } from '../lib/time.js';
 import { computeShiftMinutes } from './attendance.js';
+import { COMPLIANCE_STATUS, checkCompliance } from './compliance.js';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 const REGULAR_SHIFT_HOURS = REGULAR_SHIFT_MINUTES / MINUTES_PER_HOUR;
@@ -131,38 +132,77 @@ export function computePayslip({
   };
 }
 
-/** @param {{ store: object }} deps */
-export function createPayrollService({ store }) {
+/** @param {{ store: object, clock: { now: () => number } }} deps */
+export function createPayrollService({ store, clock }) {
+  const isOpenMonth = (month) => month >= monthKey(clock.now());
+
+  async function wageRulesFor(orgId) {
+    const org = await store.orgs.get(orgId, orgId);
+    return getSector(org.sector).wageRules;
+  }
+
   return {
     /**
-     * Payslip for one worker and calendar month (IST). Only finished shifts are paid;
-     * a shift still open is listed as pending on the client.
+     * Payslip for one worker and calendar month (IST), with a compliance check against what was
+     * actually paid. Only finished shifts are paid; a shift still open is listed as pending.
      */
     async getPayslip(orgId, workerId, month) {
       const worker = await store.workers.get(orgId, workerId);
       if (!worker) throw notFound('Worker not found.');
-      const org = await store.orgs.get(orgId, orgId);
+      const rules = await wageRulesFor(orgId);
       const { startMs, endMs } = monthBounds(month);
-      const [shifts, advances] = await Promise.all([
+      const [shifts, advances, payments] = await Promise.all([
         store.shifts.query(orgId, {
           where: { workerId },
           gte: { field: 'checkIn', value: startMs },
           lt: { field: 'checkIn', value: endMs },
         }),
         store.advances.query(orgId, { where: { workerId, month } }),
+        store.payments.query(orgId, { where: { workerId, month } }),
       ]);
-      const slip = computePayslip({
-        worker,
-        shifts,
-        advances,
-        overtimeMultiplierPct: getSector(org.sector).overtimeMultiplierPct,
-      });
+      const slip = computePayslip({ worker, shifts, advances, overtimeMultiplierPct: rules.overtimeMultiplierPct });
+      const pendingShift = shifts.some((s) => s.checkOut === null);
       return {
         month,
         worker: { id: worker.id, name: worker.name, role: worker.role },
-        pendingShift: shifts.some((s) => s.checkOut === null),
+        pendingShift,
         ...slip,
+        compliance: checkCompliance({ slip, rules, payment: payments[0] ?? null, isOpenMonth: isOpenMonth(month), pendingShift }),
       };
+    },
+
+    /**
+     * Every worker's compliance result for a month (default: last month), flagged ones first (largest shortfall on top).
+     * `items` holds only the flagged payslips (underpaid, or not checkable); `summary` counts all.
+     */
+    async listCompliance(orgId, month = previousMonth(monthKey(clock.now()))) {
+      const rules = await wageRulesFor(orgId);
+      const { startMs, endMs } = monthBounds(month);
+      const [workers, shifts, payments] = await Promise.all([
+        store.workers.query(orgId),
+        store.shifts.query(orgId, { gte: { field: 'checkIn', value: startMs }, lt: { field: 'checkIn', value: endMs } }),
+        store.payments.query(orgId, { where: { month } }),
+      ]);
+      const summary = { ok: 0, underpaid: 0, review: 0, shortfallPaise: 0 };
+      const items = [];
+      for (const worker of workers) {
+        const own = shifts.filter((s) => s.workerId === worker.id);
+        const slip = computePayslip({ worker, shifts: own, overtimeMultiplierPct: rules.overtimeMultiplierPct });
+        const compliance = checkCompliance({
+          slip,
+          rules,
+          payment: payments.find((p) => p.workerId === worker.id) ?? null,
+          isOpenMonth: isOpenMonth(month),
+          pendingShift: own.some((s) => s.checkOut === null),
+        });
+        summary[compliance.status] += 1;
+        summary.shortfallPaise += compliance.shortfallPaise;
+        if (compliance.status !== COMPLIANCE_STATUS.OK) {
+          items.push({ workerId: worker.id, name: worker.name, role: worker.role, ...compliance });
+        }
+      }
+      items.sort((a, b) => b.shortfallPaise - a.shortfallPaise || a.name.localeCompare(b.name));
+      return { month, summary, items, note: rules.note };
     },
   };
 }

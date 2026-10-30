@@ -20,6 +20,9 @@ Hindi / Tamil, read-aloud and voice input) and **one employer dashboard**, confi
 | Burnout, unsafe hours | **F6 Fatigue alerts**: >10 h in a day, >48 h / >60 h in a week, <11 h rest, 7 days without a rest day; per-sector overrides and night-shift rules. Admin list plus a gentle "please rest" notice for the worker | `src/services/fatigue.js` |
 | Employers see problems too late | **F7 Dashboard**: KPIs, 14-day inline-SVG trend, grievance table, fatigue list, explainable attrition-risk list ("who needs a supportive check-in") | `src/services/insights.js`, `src/services/attrition.js`, `public/admin/` |
 | Cannot speak up about managers | **F4 Anonymous feedback**: emoji ratings stored with no worker id, no IP, day-only timestamp; admin sees a group only when it has >= 3 answers (k-anonymity) | `src/services/feedback.js` |
+| "Was I paid what the rules say?" | **Wage and overtime compliance**: per-sector minimum wage and overtime multiplier; every payslip shows "Paid correctly" or "Underpaid, here is why" (icon + text, read-aloud); employers get a "Pay compliance" list with the shortfall | `src/services/compliance.js`, `src/services/payroll.js`, `public/shared/payslip.js`, `public/admin/compliance.js` |
+| Wrong attendance records, no way to argue | **Attendance disputes**: contest a day (forgot check-out, wrong time, wrong place, other) within 14 days; employers approve (record corrected, hours / overtime / rest warnings / pay recalculated) or reject with a note; an append-only audit trail the worker can read | `src/services/disputes.js`, `src/services/audit.js`, `public/worker/records.js`, `public/admin/disputes.js` |
+| "Is this a decent workplace?" in one number | **Decent Work Score** (0-100, admin overview): pay accuracy, rest and overtime, grievance handling, worker sentiment (k-anonymity respected), attendance accuracy; band, top 3 drivers, 14-day trend, "How is this calculated?" | `src/services/decentWork.js`, `src/services/scoreInputs.js`, `public/admin/overview.js` |
 | Skills restart from zero | **F5 Skill passport**: training, certificates, experience, employer verification, expiry warnings, read-only share link `/p/:token` and print view | `src/services/passport.js`, `public/passport/` |
 | Regional languages, low literacy, cheap phones | **F8**: en / hi / ta JSON dictionaries, voice input in `en-IN` / `hi-IN` / `ta-IN`, read-aloud, icon + text everywhere, <60 KB JS and ~10 KB CSS per page, no framework or CDN | `public/i18n/`, `public/shared/i18n.js`, `public/shared/voice.js` |
 
@@ -27,6 +30,7 @@ Hindi / Tamil, read-aloud and voice input) and **one employer dashboard**, confi
 
 - **8.5 Decent work and equal pay for work of equal value**: every payslip line is explained and disputable in one tap; overtime is computed by one rule for everyone.
 - **8.8 Safe and secure working environments**: hazard reporting by icon or voice, anonymous option with status tracking, fatigue limits, certificate expiry warnings (e.g. working at height).
+- **8.5 and 8.8 together**: pay can be checked against the rules, hours cannot be changed without a visible audit entry, and one score shows an employer where work is least decent.
 - **8.2 Productivity through diversification, technology and innovation** and **8.3 Decent job creation / formalisation**: replaces paper and WhatsApp with a verified attendance and skills record that workers carry to their next job, and lets small employers formalise records without ERP software.
 
 ## Three industries, one codebase
@@ -55,9 +59,10 @@ public/                  index.html, worker/, admin/, passport/, shared/ (css + 
 tests/                   unit + API tests (node:test, no test framework)
 ```
 
+- **Computed, not stored.** Hours, overtime, fatigue flags, payslips, compliance results and the Decent Work Score are computed from the raw records on every request (the score's 14-day trend replays the same records "as of" each day), so a corrected attendance record changes all of them at once with nothing to keep in sync.
 - **Stateless process.** Nothing is kept on disk; all state sits behind the repository interface.
 - **Multi-tenant by construction.** Every record has an `orgId`, every repository method takes it, and every route reads it from the signed session, never from the request.
-- **Pluggable store.** Services and routes only see the repository contract in `src/store/repository.js` (`insert`, `get`, `update`, `query`, `findBy` per collection). `DATA_STORE=memory` (default) or `DATA_STORE=firestore` picks the implementation, and the same contract tests run against both (see Persistence). A Cloud SQL adapter would implement the same five methods with one table per collection and an `org_id` column.
+- **Pluggable store.** Services and routes only see the repository contract in `src/store/repository.js` (`insert`, `get`, `update`, `query`, `findBy`, `deleteByOrg` per collection). `DATA_STORE=memory` (default) or `DATA_STORE=firestore` picks the implementation, and the same contract tests run against both (see Persistence). A Cloud SQL adapter would implement the same six methods with one table per collection and an `org_id` column.
 - **Time.** All day-boundary logic is IST (UTC+05:30) in `src/lib/time.js`; services receive an injected clock, so tests are deterministic.
 - **Money.** Integer paise only. The browser formats with `Intl.NumberFormat` (INR) in the user's locale.
 
@@ -69,6 +74,8 @@ tests/                   unit + API tests (node:test, no test framework)
 - 10 KB JSON body limit; server-side validation of every field (type, length, enum, id, date) in `src/middleware/validate.js`; error responses list field names and reasons, never values.
 - Authorization on every route: workers read only their own data, admins only their own org; checked by tests (cross-worker and cross-org requests).
 - Output is always written with `textContent` / `createElement`, never `innerHTML` with user data.
+- **Attendance changes are audited.** There is no endpoint that edits hours directly. The only way a record changes is an approved dispute, and the correction is written to the audit trail *before* the record is updated (if the audit write fails, nothing changes). Audit entries are only ever created, carry a SHA-256 digest of their content (`isIntact`), and the worker can read every entry about their own attendance. A dispute can be decided once: decisions on the same dispute are serialised in the process, the correction sets absolute times (so a retry is harmless), and the record must still match what it was when the dispute was filed.
+- Filing a dispute is rate limited (the report limiter) and validated: category, plausible times (not in the future, at most 18 h, within a day of the record), a real change, and a site of the same org. Records outside the window (14 days by default, `disputeWindowDays` per sector) cannot be contested; one open dispute per record.
 - Generic 500 responses (no stack traces), no request-body logging, no access log containing tracking codes (the code travels in a POST body).
 - No secrets in the repo: `SESSION_SECRET` is generated at boot if absent, `ADMIN_PASSWORD` comes only from the environment (constant-time compare; login disabled if unset and `DEMO_MODE=false`), `.env.example` holds placeholders only, `.env` is git- and docker-ignored.
 - `GEMINI_API_KEY` (optional) is sent in a header, never in a URL, and never logged.
@@ -102,7 +109,11 @@ Open `/` and press **I am a worker** or **I am an employer**; the demo buttons s
 4. **Feedback** and **Passport**: rate, add a skill, **Create link** and open the print view.
 5. Switch language (top right) to Hindi or Tamil on any screen.
 6. Employer: **Overview** (KPIs, 14-day trend), **Reports** (move your grievance to *Being checked*, then *Solved* with a note; the anonymous one shows no name), **People care** (fatigue list, attrition reasons), **Feedback** (the *Rules and pay policy* group is hidden: fewer than 3 answers), **Skills** (verify an entry), **Attendance** (QR and code), **Payslips**.
-7. Repeat as college staff / college employer, and as the hospital nurse / hospital employer: **People care** shows the night-shift rules firing (a nurse with four nights in a row and only two hours of rest before a morning shift), and **Report** offers needle-stick, patient aggression, equipment fault and infection exposure.
+7. Worker, **Pay**: switch to last month: **Underpaid, here is why** (overtime paid at the normal rate), with the expected and paid amounts and **Read this aloud**. Employer, **Pay compliance**: the flagged payslips and the shortfall.
+8. Worker, **Home > Something wrong with a day? Contest it**: contest a day ("the time is wrong", a later check-out) and watch the status timeline. Employer, **Attendance disputes**: **Start review**, then **Approve** (the dialog shows the recalculated hours, rest warnings and take-home pay) or **Reject** with a note. Back as the worker: the change history shows every step, including the correction.
+9. Employer, **Overview**: the **Decent Work Score** card (gauge, component bars, top drivers, 14-day trend, **How is this calculated?**). Pay accuracy, rest, reports, sentiment and attendance disputes all feed it, so approving or filing things above moves the numbers.
+10. Employer, bottom of **Overview** (demo mode only): **Reset demo data** deletes and rebuilds this organisation's demo data with dates anchored to today. Other organisations are not touched.
+11. Repeat as college staff / college employer, and as the hospital nurse / hospital employer: **People care** shows the night-shift rules firing (a nurse with four nights in a row and only two hours of rest before a morning shift), and **Report** offers needle-stick, patient aggression, equipment fault and infection exposure.
 
 ## Run locally and test
 
@@ -136,13 +147,22 @@ Real worker authentication would be a phone OTP; this prototype only has demo wo
 - With the default `DATA_STORE=memory` the store is **in memory and re-seeded at start**, so use a **single instance** (`--max-instances=1`); data resets when the instance restarts. With `DATA_STORE=firestore` instances are stateless and `--max-instances` can be raised (see Persistence).
 - The image defaults to `DEMO_MODE=false`; enable the demo with `--set-env-vars DEMO_MODE=true` only for the judged demo, and provide `SESSION_SECRET` / `ADMIN_PASSWORD` from Secret Manager, not from the image.
 
+## Reset demo data
+
+In demo mode (`DEMO_MODE=true`) the employer's **Overview** has a **Reset demo data** button (with a confirmation dialog). It calls `POST /api/admin/demo/reset` with `{"confirm": true}`:
+
+- Admin only, demo mode only (otherwise `403 demo_mode_required`); same-origin / JSON-only / `X-FairShift-App` checks like every write; its own rate limit (10 per 15 minutes per IP).
+- It deletes **only the signed-in admin's org** from the active store (memory or Firestore) through `deleteByOrg(orgId)`, then seeds that org again with every date anchored to today. There is no way to name another org: an `orgId` in the body that is not the admin's own gets `403`.
+- The org record is deleted first and written last, so if anything fails half way the org looks unseeded and the next start rebuilds it. Sessions stay valid (the demo admin and worker ids are fixed), and shared passport links of that org stop working.
+- It is for judged demos only: leave `DEMO_MODE=false` in production and the route does not exist for practical purposes.
+
 ## Persistence (Firestore)
 
 Set `DATA_STORE=firestore` to keep data in Cloud Firestore (Native mode) instead of memory. The adapter in `src/store/firestore.js` implements the repository contract exactly, so no route or service changes. It uses **Application Default Credentials** (the Cloud Run service account): no key file, and nothing secret in the repo or the image.
 
 How it behaves:
 
-- One collection per repository collection, prefixed `fairshift_`. A document's id is `<orgId>:<id>` and every document also stores `orgId`, so all reads are tenant-scoped.
+- One collection per repository collection (orgs, sites, admins, workers, shifts, advances, grievances, feedback, passportEntries, payments, disputes, audit), prefixed `fairshift_`. A document's id is `<orgId>:<id>` and every document also stores `orgId`, so all reads are tenant-scoped.
 - Queries use equality filters only, so **no composite indexes need deploying**; numeric range bounds are applied to the result in memory. At large scale, add composite indexes on `(orgId, <field>)` and push the range down.
 - **Seeding is idempotent.** On start the server seeds a demo org (construction, college, hospital) only if it is missing. An existing org is never touched, so restarts keep live data; the org record is written last, so a crash half way is repaired on the next start. Several instances starting together write identical documents, so there are no duplicates. Demo dates are relative to the day an org was first seeded: to refresh them, delete that org's documents (or the `fairshift_` collections) and restart.
 - **Errors are contained.** A Firestore failure is logged server-side (operation and error code only, never document data) and answered with a `503` JSON `{"error":{"code":"store_unavailable",...}}`. The process keeps running and recovers when Firestore does. If the database is down at start-up the server still starts and retries seeding in the background.
@@ -189,6 +209,9 @@ Without `FIRESTORE_EMULATOR_HOST`, `npm test` needs no credentials: the contract
 - All workers in all three sectors are paid a **daily rate**; the sector `wageType` (`contract_daily`, `daily_on_roll`) is a label shown to users. Monthly-salary staff are not modelled.
 - Paid time is elapsed time between check-in and check-out (no unpaid breaks). Regular hours are the first 8 hours of **each shift**, the rest is overtime at 2.0x (configurable per sector; the Factories Act 1948 s.59 prescribes double rate for factories). A shift belongs to the IST day it started.
 - PF is 12% of regular (non-overtime) pay with no wage ceiling; ESI is 0.75% of gross only when monthly gross <= Rs 21,000; advances are recovered only up to what is left after PF and ESI and the rest carries forward. These are simplifications of the real statutory rules.
+- **Wage rules are illustrative.** `wageRules` in `src/config/sectors.js` holds a minimum daily wage (or hourly wage), the overtime multiplier (default 2x) and a note: "Configurable defaults. Verify against current state notifications." The numbers are placeholders, not a statement of any state's notified rate. Compliance compares **gross earnings** (regular + overtime) with what was recorded as paid; a shortfall of Rs 1 or less is treated as rounding. What was paid comes from `payments` records (an import from the employer's payroll system; in this prototype they are seeded, with a few deliberate mistakes). Months with no payment record, the running month, and months with an open shift show "Cannot be checked yet".
+- **Decent Work Score.** Weights are 30 pay accuracy, 25 rest and overtime, 20 grievance handling, 15 worker sentiment, 10 attendance accuracy (override per sector with `decentWorkWeights`). A part without data is left out and the others are scaled up to 100%. Bands: Healthy 80+, Needs attention 60-79, At risk below 60. Grievance response limits are 3 / 7 / 14 days for high / medium / low severity; a resolved grievance's resolution time is taken from its last update. The trend replays today's records as of each earlier day (status changes by their timestamps), so it needs no stored history; pay accuracy uses the last finished month. These are transparent heuristics, not a validated index.
+- **Disputes.** A correction sets absolute times; double-approval protection is in-process serialisation plus the "record must still match" check and idempotent audit ids. Two employers approving at the same instant on two different instances could in theory both pass the status check, but the result (same corrected times, same audit entry id) is identical, so nothing is applied twice.
 - Seed data covers 62 days so last month's payslip is meaningful, and is generated from a seeded PRNG relative to today (IST). The demo worker (the "amber" fatigue case) deliberately has not checked in today.
 - An open shift older than 18 hours is treated as forgotten and closed automatically.
 - Attrition-risk points and fatigue thresholds are transparent heuristics, not a validated predictive model. Anonymous grievances and feedback are never inputs.
@@ -202,4 +225,5 @@ Without `FIRESTORE_EMULATOR_HOST`, `npm test` needs no credentials: the contract
 - QR scanning uses the `BarcodeDetector` API (Chrome on Android); other browsers fall back to typing the 6-digit code.
 - Real worker sign-in (phone OTP), password reset and an audit log are out of scope for this prototype. Rate limits are per instance.
 - The Firestore adapter is verified here against a fake client and the shared contract tests; the emulator suite is included but only runs when `FIRESTORE_EMULATOR_HOST` is set, so it has not been run against a live Firestore from this repo's test run.
+- Audit entries are tamper-evident (digest), not tamper-proof: someone with direct database write access could still rewrite an entry and its digest. Production would also ship the trail to write-once storage.
 - Not tested with a screen reader on real devices; contrast and keyboard behaviour are covered by design and by tests.

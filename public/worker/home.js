@@ -209,5 +209,6 @@ export async function renderHome(session, rerender) {
           iconButton('lock', t('home.enterCode'), { onclick: () => openCodeDialog(submit) }),
         ),
     weekList(today.recent),
+    h('a', { class: 'btn btn-block', href: '#records' }, icon('alert'), t('home.contestLink')),
   );
 }

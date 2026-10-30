@@ -16,7 +16,17 @@ export function createFakeFirestore() {
   const guard = () => {
     if (failure) throw failure;
   };
-  const snapshot = (id, doc) => ({ id, exists: doc !== undefined, data: () => (doc === undefined ? undefined : structuredClone(doc)) });
+  const snapshot = (id, doc, name) => ({
+    id,
+    exists: doc !== undefined,
+    data: () => (doc === undefined ? undefined : structuredClone(doc)),
+    ref: {
+      async delete() {
+        guard();
+        docsOf(name).delete(id);
+      },
+    },
+  });
 
   function query(name, filters = [], max = Infinity) {
     return {
@@ -30,7 +40,7 @@ export function createFakeFirestore() {
         const docs = [...docsOf(name)]
           .filter(([, doc]) => filters.every((f) => doc[f.field] === f.value))
           .slice(0, max)
-          .map(([id, doc]) => snapshot(id, doc));
+          .map(([id, doc]) => snapshot(id, doc, name));
         return { docs, empty: docs.length === 0 };
       },
     };
@@ -43,7 +53,7 @@ export function createFakeFirestore() {
         doc: (id) => ({
           async get() {
             guard();
-            return snapshot(id, docsOf(name).get(id));
+            return snapshot(id, docsOf(name).get(id), name);
           },
           async set(data) {
             guard();

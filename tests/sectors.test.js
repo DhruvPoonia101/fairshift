@@ -171,7 +171,7 @@ describe('every sector runs the core flows through the real API', () => {
       const slip = (await app.request(`/api/workers/${worker.session.user.id}/payslips/${month}`, { cookie: worker.cookie })).json;
       assert.ok(slip.lines.every((l) => Number.isInteger(l.amountPaise)));
       assert.equal(slip.netPaise, slip.grossPaise - slip.deductionsPaise);
-      assert.equal(slip.overtimeMultiplierPct, sector.overtimeMultiplierPct);
+      assert.equal(slip.overtimeMultiplierPct, sector.wageRules.overtimeMultiplierPct);
 
       // anonymous hazard report in this sector's own category, stored without identity
       const hazard = sector.hazardCategories[0];

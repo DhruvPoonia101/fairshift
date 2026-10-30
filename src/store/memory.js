@@ -36,6 +36,11 @@ function createCollection() {
       const docs = byOrg.get(orgId)?.values() ?? [];
       return [...docs].filter((d) => matches(d, query)).map((d) => structuredClone(d));
     },
+    async deleteByOrg(orgId) {
+      const count = byOrg.get(orgId)?.size ?? 0;
+      byOrg.delete(orgId);
+      return count;
+    },
     async findBy(field, value) {
       if (!value) return null;
       for (const docs of byOrg.values()) {

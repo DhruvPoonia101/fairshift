@@ -48,9 +48,10 @@ const isStale = (shift, nowMs) => nowMs - shift.checkIn >= STALE_SHIFT_MINUTES *
  * @param {object} deps.store
  * @param {{ now: () => number }} deps.clock
  * @param {ReturnType<import('./qr.js').createSiteCredentials>} deps.credentials
+ * @param {ReturnType<import('./audit.js').createAuditService>} [deps.audit] records automatic changes to a record
  * @param {boolean} [deps.skipButtonGeofence] demo mode: the "I'm at work" button ignores the distance check
  */
-export function createAttendanceService({ store, clock, credentials, skipButtonGeofence = false }) {
+export function createAttendanceService({ store, clock, credentials, audit, skipButtonGeofence = false }) {
   async function findOpenShift(worker) {
     const open = await store.shifts.query(worker.orgId, {
       where: { workerId: worker.id, checkOut: null },
@@ -100,9 +101,17 @@ export function createAttendanceService({ store, clock, credentials, skipButtonG
         throw conflict('already_checked_in', 'You are already checked in.');
       }
       if (open) {
-        await store.shifts.update(worker.orgId, open.id, {
-          checkOut: open.checkIn + REGULAR_SHIFT_MINUTES * MS_PER_MINUTE,
-          autoClosed: true,
+        const checkOut = open.checkIn + REGULAR_SHIFT_MINUTES * MS_PER_MINUTE;
+        await store.shifts.update(worker.orgId, open.id, { checkOut, autoClosed: true });
+        await audit?.record({
+          orgId: worker.orgId,
+          workerId: worker.id,
+          actorRole: 'system',
+          actorId: 'system',
+          action: 'shift_auto_closed',
+          shiftId: open.id,
+          before: { checkIn: open.checkIn, checkOut: null, siteId: open.siteId },
+          after: { checkIn: open.checkIn, checkOut, siteId: open.siteId },
         });
       }
       return store.shifts.insert({

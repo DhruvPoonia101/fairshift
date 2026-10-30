@@ -1,10 +1,11 @@
-import { MINUTES_PER_HOUR, PAYROLL } from './constants.js';
+import { DISPUTE, MINUTES_PER_HOUR, PAYROLL, WAGE_RULES_NOTE } from './constants.js';
 
 /**
  * Sector configuration. Adding a sector (a factory, say) means adding an entry here plus translated
  * labels in public/i18n and demo data in src/store/seed.js; no service or route code changes.
  * Display labels are translation keys on the client: sector.<id>, term.<id>.*, role.*, cat.*.
  *
+ * `decentWorkWeights` optionally overrides the Decent Work Score weights (see src/services/decentWork.js).
  * `fatigue` optionally overrides the default rest rules (see src/services/fatigue.js). All numbers
  * are configurable defaults for the demo, not statements of what any law requires.
  */
@@ -23,6 +24,14 @@ const hazard = (id, icon, minSeverity = 'medium') => ({ id, icon, kind: 'hazard'
 
 const hours = (n) => n * MINUTES_PER_HOUR;
 
+/** Minimum wage and overtime rule for a sector. Illustrative defaults: check the current notification for your state. */
+const wageRules = (minDailyWagePaise) => ({
+  minDailyWagePaise,
+  minHourlyWagePaise: null,
+  overtimeMultiplierPct: PAYROLL.DEFAULT_OVERTIME_MULTIPLIER_PCT,
+  note: WAGE_RULES_NOTE,
+});
+
 export const SECTORS = Object.freeze({
   construction: {
     id: 'construction',
@@ -30,7 +39,8 @@ export const SECTORS = Object.freeze({
     orgName: 'BuildRight Constructions',
     wageType: 'contract_daily',
     geofenceRadiusMeters: 150,
-    overtimeMultiplierPct: PAYROLL.DEFAULT_OVERTIME_MULTIPLIER_PCT,
+    disputeWindowDays: DISPUTE.WINDOW_DAYS,
+    wageRules: wageRules(55_000),
     roles: [
       { id: 'mason', dailyWagePaise: 90_000 },
       { id: 'electrician', dailyWagePaise: 100_000 },
@@ -59,7 +69,8 @@ export const SECTORS = Object.freeze({
     orgName: 'Greenfield College',
     wageType: 'daily_on_roll',
     geofenceRadiusMeters: 300,
-    overtimeMultiplierPct: PAYROLL.DEFAULT_OVERTIME_MULTIPLIER_PCT,
+    disputeWindowDays: DISPUTE.WINDOW_DAYS,
+    wageRules: wageRules(45_000),
     roles: [
       { id: 'housekeeping', dailyWagePaise: 50_000 },
       { id: 'security', dailyWagePaise: 65_000 },
@@ -90,7 +101,8 @@ export const SECTORS = Object.freeze({
     orgName: 'CityCare Hospital',
     wageType: 'daily_on_roll',
     geofenceRadiusMeters: 200,
-    overtimeMultiplierPct: PAYROLL.DEFAULT_OVERTIME_MULTIPLIER_PCT,
+    disputeWindowDays: DISPUTE.WINDOW_DAYS,
+    wageRules: wageRules(55_000),
     roles: [
       { id: 'nurse', dailyWagePaise: 110_000 },
       { id: 'ward_staff', dailyWagePaise: 60_000 },
@@ -163,7 +175,8 @@ export function publicSectorView(sectorId) {
     icon: sector.icon,
     wageType: sector.wageType,
     geofenceRadiusMeters: sector.geofenceRadiusMeters,
-    overtimeMultiplierPct: sector.overtimeMultiplierPct,
+    overtimeMultiplierPct: sector.wageRules.overtimeMultiplierPct,
+    disputeWindowDays: sector.disputeWindowDays,
     categories: categoriesFor(sectorId),
     roles: sector.roles.map((r) => r.id),
     shifts: sector.shifts.map((s) => ({ id: s.id, startMinute: s.startMinute })),

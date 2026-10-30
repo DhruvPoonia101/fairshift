@@ -18,6 +18,7 @@ import { COLLECTION_NAMES, assertRepository } from './repository.js';
 
 export const COLLECTION_PREFIX = 'fairshift_';
 const NOT_FOUND_CODE = 5;
+const DELETE_CONCURRENCY = 100;
 const HEALTH_COLLECTION = `${COLLECTION_PREFIX}health`;
 
 const docId = (orgId, id) => `${orgId}:${id}`;
@@ -76,6 +77,15 @@ export function createFirestoreStore({ db, logError = console.error }) {
           return q.get();
         });
         return snap.docs.map((d) => d.data()).filter((doc) => inRange(doc, query));
+      },
+
+      async deleteByOrg(orgId) {
+        const snap = await guard(`${name}.deleteByOrg`, () => col().where('orgId', '==', orgId).get());
+        const refs = snap.docs.map((d) => d.ref);
+        for (let i = 0; i < refs.length; i += DELETE_CONCURRENCY) {
+          await guard(`${name}.deleteByOrg`, () => Promise.all(refs.slice(i, i + DELETE_CONCURRENCY).map((ref) => ref.delete())));
+        }
+        return refs.length;
       },
 
       async findBy(field, value) {

@@ -97,6 +97,20 @@ export function repositoryContract(label, makeStore, { skip = false } = {}) {
       assert.equal(await store.workers.findBy('passportToken', null), null);
     });
 
+    test('deleteByOrg removes only that org, reports how many, and the org can be filled again', async () => {
+      for (const id of ['a', 'b', 'c']) await store.shifts.insert({ id, orgId: orgA, workerId: 'w1', checkIn: 1 });
+      await store.shifts.insert({ id: 'a', orgId: orgB, workerId: 'w1', checkIn: 1 });
+      await store.workers.insert({ id: 'w1', orgId: orgA, passportToken: `tok-${uid()}` });
+      assert.equal(await store.shifts.deleteByOrg(orgA), 3);
+      assert.deepEqual(await store.shifts.query(orgA), []);
+      assert.equal((await store.shifts.query(orgB)).length, 1);
+      assert.ok(await store.workers.get(orgA, 'w1'), 'other collections of the same org are untouched');
+      assert.equal(await store.shifts.deleteByOrg(orgA), 0);
+      assert.equal(await store.shifts.deleteByOrg(`org-empty-${uid()}`), 0);
+      await store.shifts.insert({ id: 'a', orgId: orgA, workerId: 'w1', checkIn: 2 });
+      assert.equal((await store.shifts.get(orgA, 'a')).checkIn, 2);
+    });
+
     test('every collection name accepts the same operations', async () => {
       for (const name of COLLECTION_NAMES) {
         await store[name].insert({ id: 'x1', orgId: orgA, label: name });
