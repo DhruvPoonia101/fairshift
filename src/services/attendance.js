@@ -8,7 +8,7 @@ import { conflict, unprocessable } from '../lib/errors.js';
 import { distanceMeters } from '../lib/geo.js';
 import { newId } from '../lib/random.js';
 import { addDays, dayKey, dayRange, dayStartMs } from '../lib/time.js';
-import { FATIGUE_LOOKBACK_DAYS, evaluateFatigue, fatigueLevel } from './fatigue.js';
+import { FATIGUE_LOOKBACK_DAYS, evaluateFatigue, fatigueLevel, resolveFatigueRules } from './fatigue.js';
 
 /**
  * Splits one shift into regular (first 8 hours) and overtime minutes.
@@ -146,7 +146,8 @@ export function createAttendanceService({ store, clock, credentials, skipButtonG
     async restStatus(worker) {
       const now = clock.now();
       const shifts = await shiftsSince(worker, dayStartMs(addDays(dayKey(now), -FATIGUE_LOOKBACK_DAYS)));
-      const flags = evaluateFatigue(shifts, now);
+      const org = await store.orgs.get(worker.orgId, worker.orgId);
+      const flags = evaluateFatigue(shifts, now, resolveFatigueRules(getSector(org.sector).fatigue));
       return { level: fatigueLevel(flags), flags };
     },
 

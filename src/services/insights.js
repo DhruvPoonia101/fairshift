@@ -3,7 +3,7 @@ import { findShift, getSector } from '../config/sectors.js';
 import { addDays, dayKey, dayRange, dayStartMs } from '../lib/time.js';
 import { summariseByDay } from './attendance.js';
 import { deriveSignals, scoreAttrition } from './attrition.js';
-import { evaluateFatigue, fatigueLevel } from './fatigue.js';
+import { evaluateFatigue, fatigueLevel, resolveFatigueRules } from './fatigue.js';
 
 const TREND_DAYS = 14;
 const ATTRITION_LOOKBACK_DAYS = 28;
@@ -85,6 +85,7 @@ export function createInsightsService({ store, clock, passport, feedback, env, f
         passport.attention(orgId),
       ]);
       const siteNames = new Map(sites.map((s) => [s.id, s.name]));
+      const fatigueRules = resolveFatigueRules(sector.fatigue);
       const weekStart = addDays(today, -(FATIGUE.WINDOW_DAYS - 1));
       const trendKeys = dayRange(addDays(today, -(TREND_DAYS - 1)), today);
       const presentByDay = new Map(trendKeys.map((k) => [k, new Set()]));
@@ -104,7 +105,7 @@ export function createInsightsService({ store, clock, passport, feedback, env, f
           role: worker.role,
           site: siteNames.get(worker.siteId) ?? '',
         };
-        const flags = evaluateFatigue(own, now);
+        const flags = evaluateFatigue(own, now, fatigueRules);
         if (flags.length > 0) fatigue.push({ ...identity, level: fatigueLevel(flags), flags });
 
         const signals = deriveSignals({

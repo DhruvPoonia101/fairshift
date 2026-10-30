@@ -12,21 +12,13 @@ const FEATURES = [
   ['badge', 'skills'],
   ['globe', 'lang'],
 ];
-const INDUSTRIES = [
-  ['building', 'construction'],
-  ['users', 'college'],
-];
-const DEMO_ROLES = {
-  worker: ['worker-construction', 'worker-college'],
-  admin: ['admin-construction', 'admin-college'],
-};
-const ADMIN_ORGS = { construction: 'org-construction', college: 'org-college' };
 const DESTINATION = { worker: '/worker/', admin: '/admin/' };
 
 await initI18n();
 mountLanguageSwitcher(document.getElementById('lang'));
 
-const config = await api('/config').catch(() => ({ demoMode: false, adminLogin: false }));
+// The sectors come from the server's sector config, so a new sector appears here with no code change.
+const config = await api('/config').catch(() => ({ demoMode: false, adminLogin: false, sectors: [] }));
 const panels = { worker: document.getElementById('panel-worker'), admin: document.getElementById('panel-admin') };
 const buttons = { worker: document.getElementById('pick-worker'), admin: document.getElementById('pick-admin') };
 
@@ -45,17 +37,18 @@ function demoButtons(kind) {
   return h(
     'div',
     { class: 'stack-sm' },
-    ...DEMO_ROLES[kind].map((role) => {
-      const sector = role.split('-')[1];
-      const button = iconButton(kind === 'worker' ? 'user' : 'building', t(`landing.demo.${role}`), { class: 'btn btn-block' });
+    ...config.sectors.map(({ id, icon: sectorIcon }) => {
+      const role = `${kind}-${id}`;
+      const label = t(kind === 'worker' ? 'landing.demoWorker' : 'landing.demoAdmin', { sector: t(`sector.${id}`) });
+      const button = iconButton(kind === 'worker' ? 'user' : sectorIcon, label, { class: 'btn btn-block' });
       button.addEventListener('click', () => demoLogin(role, button));
-      return h('div', { class: 'stack-sm' }, button, h('p', { class: 'hint demo-note', text: t(`landing.demoHint.${sector}`) }));
+      return h('div', { class: 'stack-sm' }, button, h('p', { class: 'hint demo-note', text: t(`landing.demoHint.${id}`) }));
     }),
   );
 }
 
 function adminPasswordForm() {
-  const org = h('select', { id: 'admin-org' }, ...Object.entries(ADMIN_ORGS).map(([sector, id]) => h('option', { value: id, text: t(`sector.${sector}`) })));
+  const org = h('select', { id: 'admin-org' }, ...config.sectors.map(({ id, orgId }) => h('option', { value: orgId, text: t(`sector.${id}`) })));
   const password = h('input', { id: 'admin-pass', type: 'password', autocomplete: 'current-password', required: true, maxlength: 200 });
   const submit = iconButton('lock', t('landing.signIn'), { class: 'btn btn-primary', type: 'submit' });
   const form = h('form', { class: 'stack-sm' }, field(t('landing.org'), org), field(t('landing.password'), password), submit);
@@ -103,13 +96,13 @@ function paintContent() {
     ),
   );
   document.getElementById('industries').replaceChildren(
-    ...INDUSTRIES.map(([iconName, sector]) =>
+    ...config.sectors.map(({ id, icon: sectorIcon }) =>
       h(
         'article',
         { class: 'card industry' },
-        h('h3', { class: 'row' }, icon(iconName), t(`sector.${sector}`)),
-        h('p', { class: 'muted', text: t(`landing.industry.${sector}.who`) }),
-        h('ul', {}, ...[1, 2, 3].map((n) => h('li', { text: t(`landing.industry.${sector}.${n}`) }))),
+        h('h3', { class: 'row' }, icon(sectorIcon), t(`sector.${id}`)),
+        h('p', { class: 'muted', text: t(`landing.industry.${id}.who`) }),
+        h('ul', {}, ...[1, 2, 3].map((n) => h('li', { text: t(`landing.industry.${id}.${n}`) }))),
       ),
     ),
   );

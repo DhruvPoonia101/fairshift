@@ -25,7 +25,6 @@ import { assertRepository } from './store/repository.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const JSON_BODY_LIMIT = '10kb';
-const STATIC_MAX_AGE = '1h';
 
 /**
  * Express app factory. Everything stateful (store, clock) is injected, so tests can run the real
@@ -59,8 +58,18 @@ export function createApp({
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // Cloud Run puts one proxy hop in front of the container.
 
-  // Health check first: no rate limit, no cookies, nothing that can fail.
+  // Liveness first: no rate limit, no cookies, no dependency on the database.
   app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
+
+  // Deep check for operators: also reports which data store is in use and whether it answers.
+  app.get('/health', async (req, res) => {
+    try {
+      await store.ping?.();
+      res.json({ status: 'ok', dataStore: store.kind ?? 'unknown' });
+    } catch {
+      res.status(503).json({ status: 'degraded', dataStore: store.kind ?? 'unknown' });
+    }
+  });
 
   app.use(securityHeaders(), permissionsPolicy);
 
@@ -84,7 +93,8 @@ export function createApp({
   app.use('/api', api);
 
   app.get('/p/:token', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'passport', 'index.html')));
-  app.use(express.static(PUBLIC_DIR, { maxAge: STATIC_MAX_AGE }));
+  // no-cache = always revalidate (cheap 304 via ETag), so a new release is never hidden behind a stale cached script.
+  app.use(express.static(PUBLIC_DIR, { setHeaders: (res) => res.set('Cache-Control', 'no-cache') }));
   app.use((req, res) => res.status(404).type('text/plain').send('Not found'));
   app.use(errorHandler(logError));
   return app;

@@ -77,10 +77,3 @@ export const PASSPORT_EXPIRY_WARNING_DAYS = 30;
 
 export const CHECK_IN_METHODS = Object.freeze(['qr', 'code', 'button']);
 export const CHECK_IN_CODE_DIGITS = 6;
-
-export const DEMO_ROLES = Object.freeze([
-  'worker-construction',
-  'worker-college',
-  'admin-construction',
-  'admin-college',
-]);

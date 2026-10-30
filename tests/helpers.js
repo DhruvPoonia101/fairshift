@@ -38,13 +38,14 @@ export async function seededStore(clock) {
 
 /**
  * Starts the real app on an ephemeral port with a seeded store and a fixed clock.
+ * Pass `store` to run against another repository (it must already be seeded).
  * @returns helpers: `request(path, options)`, `login(role)`, `close()`
  */
-export async function startApp({ envOverrides, limits, nowMs = NOW, fetchImpl } = {}) {
+export async function startApp({ envOverrides, limits, nowMs = NOW, fetchImpl, store: customStore, logError = () => {} } = {}) {
   const clock = fixedClock(nowMs);
-  const store = await seededStore(clock);
+  const store = customStore ?? (await seededStore(clock));
   const env = testEnv(envOverrides);
-  const app = createApp({ store, env, clock, limits, fetchImpl, logError: () => {} });
+  const app = createApp({ store, env, clock, limits, fetchImpl, logError });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });

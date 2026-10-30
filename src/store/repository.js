@@ -9,6 +9,8 @@
  * @property {{ field: string, value: number }} [gte] inclusive lower bound on a numeric field
  * @property {{ field: string, value: number }} [lt] exclusive upper bound on a numeric field
  *
+ * Besides the collections, a store may expose `kind` ('memory' | 'firestore') and `ping()`, used by GET /health.
+ *
  * @typedef {object} Collection
  * @property {(doc: {id: string, orgId: string}) => Promise<object>} insert
  * @property {(orgId: string, id: string) => Promise<object | null>} get

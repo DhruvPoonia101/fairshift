@@ -50,5 +50,5 @@ function createCollection() {
 
 export function createMemoryStore() {
   const store = Object.fromEntries(COLLECTION_NAMES.map((name) => [name, createCollection()]));
-  return assertRepository(store);
+  return assertRepository({ ...store, kind: 'memory', ping: async () => true });
 }

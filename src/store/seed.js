@@ -12,6 +12,13 @@ import { suggestSeverity } from '../services/grievance.js';
  *  - amber / red: fatigued workers (amber is the demo worker, who has not checked in today)
  *  - attrA: attendance dropping, often late, an unresolved complaint
  *  - attrB: new joiner, late, disputed a payslip
+ *  - nightRun: four night shifts in a row, then a morning shift two hours after the last one
+ *  - overtime: long shifts every working day this week
+ *
+ * Seeding is idempotent: an org that already exists is left alone, and its org document is written
+ * last, so a crash half way through is repaired by the next start. That makes it safe to run on
+ * every boot and from several instances at once (ids are deterministic, so races only rewrite
+ * identical documents).
  */
 
 const SEED_DAYS = 62;
@@ -23,6 +30,10 @@ const NORMAL_SHIFT_MINUTES = 480;
 const LONG_SHIFT_MINUTES = 618;
 const AMBER_SHIFT_MINUTES = 500;
 const NEW_JOINER_TENURE_DAYS = 35;
+const OVERTIME_PROFILE_SHIFT_MINUTES = 630;
+const NIGHT_RUN_NIGHTS = 4;
+const MORNING_START_MINUTE = 7 * 60;
+const WRITE_CONCURRENCY = 100;
 
 const w = (name, role, profile, shiftId, siteIdx = 0) => ({ name, role, profile, shiftId, siteIdx });
 
@@ -121,12 +132,57 @@ const ORGS = [
       ['conditions', 2, 'Wet floors near the canteen.'],
     ],
   },
+  {
+    id: 'org-hospital',
+    sector: 'hospital',
+    adminId: 'adm-hos',
+    adminName: 'Dr. Kavita Rao',
+    abbr: 'hos',
+    offDays: 2,
+    workers: [
+      w('Priya Menon', 'nurse', 'amber', 'morning'),
+      w('Anita Joseph', 'nurse', 'normal', 'night'),
+      w('Farah Khan', 'nurse', 'red', 'evening', 1),
+      w('Rohit Sharma', 'ward_staff', 'normal', 'morning', 1),
+      w('Deepa Nair', 'nurse', 'nightRun', 'night'),
+      w('Kumar S', 'ward_staff', 'overtime', 'morning', 2),
+      w('Meera Iyer', 'nurse', 'normal', 'evening', 2),
+      w('Sanjay Das', 'ward_staff', 'attrA', 'morning', 2),
+      w('Lakshmi P', 'nurse', 'attrB', 'evening', 1),
+      w('Imran Pasha', 'ward_staff', 'normal', 'night'),
+    ],
+    expiring: { workerIndex: 6, title: 'Basic Life Support (BLS)', issuer: 'CityCare Training Cell', daysLeft: 14 },
+    certByRole: {
+      nurse: 'Nursing Registration',
+      ward_staff: 'Infection Control Training',
+    },
+    grievances: [
+      { who: 7, category: 'hours', text: 'I was asked to cover the ward again right after a night shift, with no rest.', ageDays: 10, status: 'open' },
+      { who: 8, category: 'pay', text: 'Payslip looks wrong. My night shift overtime hours are missing.', ageDays: 3, status: 'in_review', source: 'payslip' },
+      { anonymous: true, category: 'needle_stick', text: 'The sharps bin in the ICU is overfilled. Someone could get a needle injury.', ageDays: 2, status: 'open' },
+      { anonymous: true, category: 'infection_exposure', text: 'Isolation room signs were missing and visitors walked in without masks.', ageDays: 18, status: 'resolved', note: 'Signs and a mask dispenser were placed at the isolation room door.' },
+      { who: 1, category: 'equipment_fault', text: 'The infusion pump alarm at ICU bed 4 keeps failing.', ageDays: 22, status: 'resolved', note: 'Pump replaced by the biomedical team.' },
+    ],
+    feedback: [
+      ['manager', 4, 'Head nurse supports us on busy shifts.'],
+      ['manager', 3, ''],
+      ['manager', 5, ''],
+      ['policies', 2, 'Shift swaps are hard to get approved.'],
+      ['policies', 3, ''],
+      ['conditions', 2, 'The night staff room is too small.'],
+      ['conditions', 3, 'We run short of gloves at times.'],
+      ['conditions', 4, 'Good equipment in the ICU.'],
+      ['conditions', 3, ''],
+    ],
+  },
 ];
 
 /** What a worker does on one day, or null for no shift. */
-function planDay(profile, offset, weekday, weekOff, shiftStart, prng) {
+function planDay(profile, offset, weekday, weekOffs, shiftStart, prng) {
   const regular = () => ({ start: shiftStart + prng.int(-10, 5), minutes: NORMAL_SHIFT_MINUTES - prng.int(0, 10) });
-  const onWeekOff = weekday === weekOff;
+  const onWeekOff = weekOffs.includes(weekday);
+  // With two weekly off days fewer days remain, so the "drifting" workers attend every 2nd day, not every 3rd.
+  const period = weekOffs.length > 1 ? 2 : 3;
 
   if (profile === 'red' && offset >= 1 && offset <= 8) {
     return { start: offset === 3 ? 12 * 60 : shiftStart, minutes: LONG_SHIFT_MINUTES };
@@ -135,11 +191,19 @@ function planDay(profile, offset, weekday, weekOff, shiftStart, prng) {
     if (offset === 0 || offset === 7) return null;
     if (offset <= 6) return { start: shiftStart, minutes: AMBER_SHIFT_MINUTES };
   }
+  if (profile === 'nightRun') {
+    if (offset >= 2 && offset <= NIGHT_RUN_NIGHTS + 1) return { start: shiftStart, minutes: NORMAL_SHIFT_MINUTES };
+    if (offset === 1) return { start: MORNING_START_MINUTE, minutes: NORMAL_SHIFT_MINUTES };
+    if (offset === 0 || offset === NIGHT_RUN_NIGHTS + 2) return null; // today, and the day off before the run
+  }
+  if (profile === 'overtime' && offset >= 1 && offset <= 7) {
+    return onWeekOff ? null : { start: shiftStart, minutes: OVERTIME_PROFILE_SHIFT_MINUTES };
+  }
   if (profile === 'attrA' && offset <= 14) {
-    if (offset === 0 || offset % 3 !== 0 || onWeekOff) return null;
+    if (offset === 0 || offset % period !== 0 || onWeekOff) return null;
     return { start: shiftStart + prng.int(25, 40), minutes: NORMAL_SHIFT_MINUTES };
   }
-  if (profile === 'attrB' && offset >= 1 && offset <= 14 && offset % 3 === 0 && !onWeekOff) {
+  if (profile === 'attrB' && offset >= 1 && offset <= 14 && offset % period === 0 && !onWeekOff) {
     return { start: shiftStart + prng.int(20, 35), minutes: NORMAL_SHIFT_MINUTES };
   }
 
@@ -152,13 +216,13 @@ function planDay(profile, offset, weekday, weekOff, shiftStart, prng) {
   return day;
 }
 
-function buildShifts({ spec, worker, profile, orgId, today, nowMs, prng, counter }) {
+function buildShifts({ spec, worker, profile, weekOffs, orgId, today, nowMs, prng, counter }) {
   const shifts = [];
   const shiftStart = findShift(spec.sector, worker.shiftId).startMinute;
   for (let offset = SEED_DAYS; offset >= 0; offset -= 1) {
     const date = addDays(today, -offset);
     if (date < worker.joinedOn) continue;
-    const plan = planDay(profile, offset, weekdayOf(date), worker.weekOff, shiftStart, prng);
+    const plan = planDay(profile, offset, weekdayOf(date), weekOffs, shiftStart, prng);
     if (!plan) continue;
     const checkIn = dayStartMs(date) + plan.start * MS_PER_MINUTE;
     if (checkIn >= nowMs) continue;
@@ -219,18 +283,15 @@ function advancesFor(worker, profile, nowMs, orgId) {
   return [];
 }
 
-async function seedGrievances(store, spec, workers, nowMs) {
-  let n = 0;
-  for (const g of spec.grievances) {
-    n += 1;
+function grievanceDocs(spec, workers, nowMs) {
+  return spec.grievances.map((g, index) => {
     const createdAt = nowMs - g.ageDays * MS_PER_DAY;
-    const category = findCategory(spec.sector, g.category);
     const record = {
-      id: `gr-${spec.abbr}-${n}`,
+      id: `gr-${spec.abbr}-${index + 1}`,
       orgId: spec.id,
       category: g.category,
       text: g.text,
-      severity: suggestSeverity(g.text, category),
+      severity: suggestSeverity(g.text, findCategory(spec.sector, g.category)),
       status: g.status,
       source: g.source ?? 'manual',
       month: g.source === 'payslip' ? previousMonth(monthKey(nowMs)) : null,
@@ -241,24 +302,24 @@ async function seedGrievances(store, spec, workers, nowMs) {
     };
     if (g.anonymous) record.trackingHash = randomToken();
     else record.workerId = workers[g.who].id;
-    await store.grievances.insert(record);
-  }
+    return { collection: 'grievances', doc: record };
+  });
 }
 
-async function seedOrg(store, spec, clock) {
-  const nowMs = clock.now();
+/** Every document of one demo org except the org record itself, as `{ collection, doc }` pairs. */
+function orgDocs(spec, nowMs) {
   const today = dayKey(nowMs);
   const prng = createPrng(hashString(spec.id));
   const sector = SECTORS[spec.sector];
   const counter = { n: 0 };
-
-  await store.orgs.insert({ id: spec.id, orgId: spec.id, name: sector.orgName, sector: spec.sector });
-  await store.admins.insert({ id: spec.adminId, orgId: spec.id, name: spec.adminName });
-  for (const site of sector.sites) await store.sites.insert({ ...site, orgId: spec.id });
+  const out = [{ collection: 'admins', doc: { id: spec.adminId, orgId: spec.id, name: spec.adminName } }];
+  for (const site of sector.sites) out.push({ collection: 'sites', doc: { ...site, orgId: spec.id } });
 
   const workers = [];
   for (const [index, ws] of spec.workers.entries()) {
     const roleDef = sector.roles.find((r) => r.id === ws.role);
+    const offDays = spec.offDays ?? 1;
+    const weekOffs = Array.from({ length: offDays }, (_, k) => (index * 3 + k * 3) % 7);
     const worker = {
       id: `w-${spec.abbr}-${String(index + 1).padStart(2, '0')}`,
       orgId: spec.id,
@@ -268,39 +329,51 @@ async function seedOrg(store, spec, clock) {
       siteId: sector.sites[ws.siteIdx].id,
       shiftId: ws.shiftId,
       joinedOn: addDays(today, ws.profile === 'attrB' ? -NEW_JOINER_TENURE_DAYS : -prng.int(120, 900)),
-      weekOff: (index * 3) % 7,
       isDemo: ws.profile === 'amber',
       passportToken: null,
     };
     workers.push(worker);
-    await store.workers.insert(worker);
-    for (const shift of buildShifts({ spec, worker, profile: ws.profile, orgId: spec.id, today, nowMs, prng, counter })) {
-      await store.shifts.insert(shift);
-    }
-    for (const entry of passportFor(spec, worker, index, today, spec.id)) await store.passportEntries.insert(entry);
-    for (const advance of advancesFor(worker, ws.profile, nowMs, spec.id)) await store.advances.insert(advance);
+    out.push({ collection: 'workers', doc: worker });
+    const shifts = buildShifts({ spec, worker, profile: ws.profile, weekOffs, orgId: spec.id, today, nowMs, prng, counter });
+    for (const doc of shifts) out.push({ collection: 'shifts', doc });
+    for (const doc of passportFor(spec, worker, index, today, spec.id)) out.push({ collection: 'passportEntries', doc });
+    for (const doc of advancesFor(worker, ws.profile, nowMs, spec.id)) out.push({ collection: 'advances', doc });
   }
 
-  await seedGrievances(store, spec, workers, nowMs);
-  let fb = 0;
-  for (const [subject, rating, text] of spec.feedback) {
-    fb += 1;
-    await store.feedback.insert({
-      id: `fb-${spec.abbr}-${fb}`,
-      orgId: spec.id,
-      subject,
-      rating,
-      text,
-      day: addDays(today, -(fb % 20)),
+  out.push(...grievanceDocs(spec, workers, nowMs));
+  spec.feedback.forEach(([subject, rating, text], index) => {
+    const n = index + 1;
+    out.push({
+      collection: 'feedback',
+      doc: { id: `fb-${spec.abbr}-${n}`, orgId: spec.id, subject, rating, text, day: addDays(today, -(n % 20)) },
     });
+  });
+  return out;
+}
+
+/** Writes with bounded concurrency: fast on Firestore, harmless in memory. */
+async function writeAll(store, writes) {
+  for (let i = 0; i < writes.length; i += WRITE_CONCURRENCY) {
+    await Promise.all(writes.slice(i, i + WRITE_CONCURRENCY).map(({ collection, doc }) => store[collection].insert(doc)));
   }
 }
 
 /**
- * Fills an empty store with two organisations (construction and college).
+ * Seeds every demo org that is not in the store yet (construction, college and hospital).
+ * An existing org is never touched, so restarts keep live data. The org record goes in last: it
+ * is the "this org is fully seeded" marker.
  * @param {object} store
  * @param {{ clock: { now: () => number } }} options
+ * @returns {Promise<string[]>} ids of the orgs that were seeded
  */
 export async function seedStore(store, { clock }) {
-  for (const spec of ORGS) await seedOrg(store, spec, clock);
+  const seeded = [];
+  for (const spec of ORGS) {
+    if (await store.orgs.get(spec.id, spec.id)) continue;
+    await writeAll(store, orgDocs(spec, clock.now()));
+    const sector = SECTORS[spec.sector];
+    await store.orgs.insert({ id: spec.id, orgId: spec.id, name: sector.orgName, sector: spec.sector });
+    seeded.push(spec.id);
+  }
+  return seeded;
 }
