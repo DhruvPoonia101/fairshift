@@ -2,20 +2,19 @@ import { errorMessage, h, iconButton } from '../shared/dom.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
 import { bootApp, startRouter } from '../shared/shell.js';
-import { renderFeedback } from './feedback.js';
-import { renderHome } from './home.js';
-import { renderPassport } from './passport.js';
-import { renderPay } from './pay.js';
-import { renderReport } from './report.js';
+
+// Each screen is imported when it is first opened, so a low-end phone only downloads what it shows.
+const screen = (file, name) => () => import(file).then((module) => module[name]);
 
 const TABS = [
-  { id: 'home', icon: 'home', render: renderHome },
-  { id: 'pay', icon: 'wallet', render: renderPay },
-  { id: 'report', icon: 'alert', render: renderReport },
-  { id: 'feedback', icon: 'smile', render: renderFeedback },
-  { id: 'passport', icon: 'badge', render: renderPassport },
+  { id: 'home', icon: 'home', load: screen('./home.js', 'renderHome') },
+  { id: 'pay', icon: 'wallet', load: screen('./pay.js', 'renderPay') },
+  { id: 'report', icon: 'alert', load: screen('./report.js', 'renderReport') },
+  { id: 'feedback', icon: 'smile', load: screen('./feedback.js', 'renderFeedback') },
+  { id: 'passport', icon: 'badge', load: screen('./passport.js', 'renderPassport') },
 ];
-const VIEWS = Object.fromEntries(TABS.map((tab) => [tab.id, tab.render]));
+// 'records' is reached from the Home tab, so it has no tab of its own.
+const VIEWS = { ...Object.fromEntries(TABS.map((tab) => [tab.id, tab.load])), records: screen('./records.js', 'renderRecords') };
 
 const session = await bootApp('worker');
 
@@ -39,11 +38,12 @@ if (session) {
   const show = async (name) => {
     renderToken += 1;
     const token = renderToken;
-    paintTabs(name);
+    paintTabs(name === 'records' ? 'home' : name);
     main.replaceChildren(h('p', { class: 'muted', role: 'status', text: t('common.loading') }));
     let node;
     try {
-      node = await VIEWS[name](session, () => show(name));
+      const render = await VIEWS[name]();
+      node = await render(session, () => show(name));
     } catch (error) {
       // Show what went wrong and let the user retry in place, with no full reload.
       node = h(

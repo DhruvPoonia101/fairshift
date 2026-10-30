@@ -19,4 +19,6 @@ export const unauthorized = (message = 'Please sign in.') => new AppError(401, '
 export const forbidden = (message = 'You cannot do that.') => new AppError(403, 'forbidden', message);
 export const notFound = (message = 'Not found.') => new AppError(404, 'not_found', message);
 export const conflict = (code, message) => new AppError(409, code, message);
+export const storeUnavailable = () =>
+  new AppError(503, 'store_unavailable', 'The database is temporarily unavailable. Please try again.');
 export const unprocessable = (code, message, details) => new AppError(422, code, message, details);

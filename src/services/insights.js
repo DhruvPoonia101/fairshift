@@ -1,9 +1,11 @@
-import { FATIGUE } from '../config/constants.js';
+import { DECENT_WORK, FATIGUE, FEEDBACK_SUBJECTS } from '../config/constants.js';
 import { findShift, getSector } from '../config/sectors.js';
 import { addDays, dayKey, dayRange, dayStartMs } from '../lib/time.js';
 import { summariseByDay } from './attendance.js';
 import { deriveSignals, scoreAttrition } from './attrition.js';
-import { evaluateFatigue, fatigueLevel } from './fatigue.js';
+import { DEFAULT_WEIGHTS, computeDecentWorkScore } from './decentWork.js';
+import { FATIGUE_LOOKBACK_DAYS, evaluateFatigue, fatigueLevel, resolveFatigueRules } from './fatigue.js';
+import { buildScoreInputs, endOfDay, monthsNeeded } from './scoreInputs.js';
 
 const TREND_DAYS = 14;
 const ATTRITION_LOOKBACK_DAYS = 28;
@@ -64,10 +66,11 @@ async function summariseWithGemini({ comments, apiKey, model, fetchImpl }) {
  * @param {{ now: () => number }} deps.clock
  * @param {ReturnType<import('./passport.js').createPassportService>} deps.passport
  * @param {ReturnType<import('./feedback.js').createFeedbackService>} deps.feedback
+ * @param {ReturnType<import('./payroll.js').createPayrollService>} deps.payroll
  * @param {{ geminiApiKey: string | null, geminiModel: string | null }} deps.env
  * @param {typeof fetch} [deps.fetchImpl]
  */
-export function createInsightsService({ store, clock, passport, feedback, env, fetchImpl = fetch }) {
+export function createInsightsService({ store, clock, passport, feedback, payroll, env, fetchImpl = fetch }) {
   return {
     /** Everything the employer overview needs, computed from raw records on each call. */
     async dashboard(orgId) {
@@ -85,6 +88,7 @@ export function createInsightsService({ store, clock, passport, feedback, env, f
         passport.attention(orgId),
       ]);
       const siteNames = new Map(sites.map((s) => [s.id, s.name]));
+      const fatigueRules = resolveFatigueRules(sector.fatigue);
       const weekStart = addDays(today, -(FATIGUE.WINDOW_DAYS - 1));
       const trendKeys = dayRange(addDays(today, -(TREND_DAYS - 1)), today);
       const presentByDay = new Map(trendKeys.map((k) => [k, new Set()]));
@@ -104,7 +108,7 @@ export function createInsightsService({ store, clock, passport, feedback, env, f
           role: worker.role,
           site: siteNames.get(worker.siteId) ?? '',
         };
-        const flags = evaluateFatigue(own, now);
+        const flags = evaluateFatigue(own, now, fatigueRules);
         if (flags.length > 0) fatigue.push({ ...identity, level: fatigueLevel(flags), flags });
 
         const signals = deriveSignals({
@@ -138,6 +142,54 @@ export function createInsightsService({ store, clock, passport, feedback, env, f
         fatigue,
         attrition,
         expiring,
+      };
+    },
+
+    /**
+     * The Decent Work Score for today plus a daily trend. Every day is scored from the same raw
+     * records "as of" the end of that day, so the trend needs no stored history.
+     */
+    async decentWork(orgId) {
+      const now = clock.now();
+      const today = dayKey(now);
+      const org = await store.orgs.get(orgId, orgId);
+      const sector = getSector(org.sector);
+      const trendKeys = dayRange(addDays(today, -(DECENT_WORK.TREND_DAYS - 1)), today);
+      const since = dayStartMs(addDays(trendKeys[0], -(DECENT_WORK.ATTENDANCE_WINDOW_DAYS + FATIGUE_LOOKBACK_DAYS)));
+      const [workers, shifts, grievances, feedbackDocs, disputes] = await Promise.all([
+        store.workers.query(orgId),
+        store.shifts.query(orgId, { gte: { field: 'checkIn', value: since } }),
+        store.grievances.query(orgId),
+        store.feedback.query(orgId),
+        store.disputes.query(orgId),
+      ]);
+      const complianceByMonth = new Map();
+      for (const month of monthsNeeded(trendKeys, now)) {
+        complianceByMonth.set(month, (await payroll.listCompliance(orgId, month)).summary);
+      }
+      const data = {
+        workers,
+        shifts,
+        grievances,
+        feedback: feedbackDocs,
+        disputes,
+        subjects: FEEDBACK_SUBJECTS,
+        fatigueRules: resolveFatigueRules(sector.fatigue),
+        complianceByMonth,
+      };
+      const weights = sector.decentWorkWeights ?? DEFAULT_WEIGHTS;
+      const daily = trendKeys.map((date) => ({
+        date,
+        ...computeDecentWorkScore(buildScoreInputs(data, endOfDay(date, now)), { weights }),
+      }));
+      const { date, ...current } = daily.at(-1);
+      return {
+        asOf: now,
+        today: date,
+        ...current,
+        weights,
+        bands: { healthyMin: DECENT_WORK.BANDS.HEALTHY_MIN, needsAttentionMin: DECENT_WORK.BANDS.NEEDS_ATTENTION_MIN },
+        trend: daily.map((d) => ({ date: d.date, score: d.score })),
       };
     },
 

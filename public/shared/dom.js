@@ -36,6 +36,7 @@ export function chip(kind, iconName, text) {
 }
 
 let toastRegion = null;
+let dialogCount = 0;
 
 /** Short message in a polite live region (announced by screen readers). */
 export function toast(message, iconName = 'check') {
@@ -54,21 +55,30 @@ export function toast(message, iconName = 'check') {
  * @param {() => void} [options.onClose]
  */
 export function openDialog({ title, body, actions, onClose }) {
-  const dialog = h('dialog', { 'aria-labelledby': 'dialog-title' });
-  const close = () => dialog.close();
+  dialogCount += 1;
+  const titleId = `dialog-title-${dialogCount}`; // unique, so a dialog opened from another one is named correctly
+  const dialog = h('dialog', { 'aria-labelledby': titleId });
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    onClose?.();
+    dialog.remove();
+  };
+  const close = () => {
+    dialog.close();
+    dispose(); // do not depend on the 'close' event alone
+  };
   dialog.append(
     h(
       'div',
       { class: 'stack' },
-      h('h2', { id: 'dialog-title', text: title }),
+      h('h2', { id: titleId, text: title }),
       ...body,
       h('div', { class: 'row' }, ...actions(close)),
     ),
   );
-  dialog.addEventListener('close', () => {
-    onClose?.();
-    dialog.remove();
-  });
+  dialog.addEventListener('close', dispose); // also covers the Esc key
   document.body.append(dialog);
   dialog.showModal();
   return { dialog, close };

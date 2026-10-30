@@ -2,24 +2,22 @@ import { errorMessage, h, iconButton } from '../shared/dom.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
 import { bootApp, startRouter } from '../shared/shell.js';
-import { renderAttendance } from './attendance.js';
-import { renderFeedback } from './feedback.js';
-import { renderGrievances } from './grievances.js';
-import { renderOverview } from './overview.js';
-import { renderPayroll } from './payroll.js';
-import { renderPeople } from './people.js';
-import { renderSkills } from './skills.js';
+
+// Each section is imported when it is first opened, so the page only downloads what it shows.
+const section = (file, name) => () => import(file).then((module) => module[name]);
 
 const SECTIONS = [
-  { id: 'overview', icon: 'chart', render: renderOverview },
-  { id: 'attendance', icon: 'qr', render: renderAttendance },
-  { id: 'grievances', icon: 'alert', render: renderGrievances },
-  { id: 'people', icon: 'users', render: renderPeople },
-  { id: 'feedback', icon: 'smile', render: renderFeedback },
-  { id: 'skills', icon: 'badge', render: renderSkills },
-  { id: 'payroll', icon: 'wallet', render: renderPayroll },
+  { id: 'overview', icon: 'chart', load: section('./overview.js', 'renderOverview') },
+  { id: 'attendance', icon: 'qr', load: section('./attendance.js', 'renderAttendance') },
+  { id: 'grievances', icon: 'alert', load: section('./grievances.js', 'renderGrievances') },
+  { id: 'people', icon: 'users', load: section('./people.js', 'renderPeople') },
+  { id: 'feedback', icon: 'smile', load: section('./feedback.js', 'renderFeedback') },
+  { id: 'skills', icon: 'badge', load: section('./skills.js', 'renderSkills') },
+  { id: 'payroll', icon: 'wallet', load: section('./payroll.js', 'renderPayroll') },
+  { id: 'compliance', icon: 'scale', load: section('./compliance.js', 'renderCompliance') },
+  { id: 'disputes', icon: 'calendar', load: section('./disputes.js', 'renderDisputes') },
 ];
-const VIEWS = Object.fromEntries(SECTIONS.map((s) => [s.id, s.render]));
+const VIEWS = Object.fromEntries(SECTIONS.map((s) => [s.id, s.load]));
 
 const session = await bootApp('admin');
 
@@ -39,7 +37,8 @@ if (session) {
     main.replaceChildren(h('p', { class: 'muted', role: 'status', text: t('common.loading') }));
     let node;
     try {
-      node = await VIEWS[name](session, () => show(name));
+      const render = await VIEWS[name]();
+      node = await render(session, () => show(name));
     } catch (error) {
       // Show what went wrong and let the user retry in place, with no full reload.
       node = h(

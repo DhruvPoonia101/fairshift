@@ -10,7 +10,7 @@ const BAND = { high: ['danger', 'alert'], medium: ['warn', 'info'] };
 function fatigueItem(person) {
   const [kind, iconName] = LEVEL[person.level];
   const reasons = person.flags.map((f) =>
-    h('li', { text: t(`fatigue.rule.${f.rule}`, { time: hoursMinutes(f.params.minutes ?? 0), days: f.params.days ?? 0 }) }),
+    h('li', { text: t(`fatigue.rule.${f.rule}`, { ...f.params, time: hoursMinutes(f.params.minutes ?? 0) }) }),
   );
   return h(
     'li',

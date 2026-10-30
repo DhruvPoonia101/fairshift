@@ -10,7 +10,7 @@ const WINDOW_MS = 15 * MINUTE_MS;
  * NAT, so normal clicking around must never trip them; they exist to stop floods and password guessing.
  * Tests may override them.
  */
-export const DEFAULT_LIMITS = Object.freeze({ global: 3000, login: 40, report: 300 });
+export const DEFAULT_LIMITS = Object.freeze({ global: 3000, login: 40, report: 300, reset: 10 });
 
 export function securityHeaders() {
   return helmet({

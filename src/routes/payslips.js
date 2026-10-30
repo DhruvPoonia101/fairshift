@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { ADMIN_ROLE, WORKER_ROLE } from '../config/constants.js';
 import { forbidden } from '../lib/errors.js';
-import { requireRole } from '../middleware/auth.js';
-import { v, validateParams } from '../middleware/validate.js';
+import { requireAdmin, requireRole } from '../middleware/auth.js';
+import { v, validateParams, validateQuery } from '../middleware/validate.js';
 
 /** @param {{ services: object }} deps */
 export function payslipRoutes({ services }) {
@@ -19,6 +19,11 @@ export function payslipRoutes({ services }) {
       res.json(await services.payroll.getPayslip(req.user.orgId, workerId, month));
     },
   );
+
+  // Employer view: payslips where what was paid does not match the rules, with the shortfall.
+  router.get('/admin/compliance', requireAdmin, validateQuery({ month: v.month({ optional: true }) }), async (req, res) => {
+    res.json(await services.payroll.listCompliance(req.user.orgId, req.valid.month));
+  });
 
   return router;
 }

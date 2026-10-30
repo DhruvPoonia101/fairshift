@@ -16,6 +16,8 @@ import {
 import { authRoutes } from './routes/auth.js';
 import { attendanceRoutes } from './routes/attendance.js';
 import { dashboardRoutes } from './routes/dashboard.js';
+import { demoRoutes } from './routes/demo.js';
+import { disputeRoutes } from './routes/disputes.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { grievanceRoutes } from './routes/grievances.js';
 import { passportRoutes } from './routes/passport.js';
@@ -25,7 +27,6 @@ import { assertRepository } from './store/repository.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const JSON_BODY_LIMIT = '10kb';
-const STATIC_MAX_AGE = '1h';
 
 /**
  * Express app factory. Everything stateful (store, clock) is injected, so tests can run the real
@@ -34,7 +35,7 @@ const STATIC_MAX_AGE = '1h';
  * @param {object} options.store a repository (see src/store/repository.js)
  * @param {ReturnType<typeof loadEnv>} [options.env]
  * @param {{ now: () => number }} [options.clock]
- * @param {{ global: number, login: number, report: number }} [options.limits]
+ * @param {{ global: number, login: number, report: number, reset?: number }} [options.limits]
  * @param {typeof fetch} [options.fetchImpl] for the optional Gemini call
  * @param {(message: string) => void} [options.logError]
  */
@@ -53,14 +54,25 @@ export function createApp({
     global: createLimiter(limits.global),
     login: createLimiter(limits.login, { countFailuresOnly: true }),
     report: createLimiter(limits.report),
+    reset: createLimiter(limits.reset ?? DEFAULT_LIMITS.reset),
   };
 
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // Cloud Run puts one proxy hop in front of the container.
 
-  // Health check first: no rate limit, no cookies, nothing that can fail.
+  // Liveness first: no rate limit, no cookies, no dependency on the database.
   app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
+
+  // Deep check for operators: also reports which data store is in use and whether it answers.
+  app.get('/health', async (req, res) => {
+    try {
+      await store.ping?.();
+      res.json({ status: 'ok', dataStore: store.kind ?? 'unknown' });
+    } catch {
+      res.status(503).json({ status: 'degraded', dataStore: store.kind ?? 'unknown' });
+    }
+  });
 
   app.use(securityHeaders(), permissionsPolicy);
 
@@ -72,7 +84,7 @@ export function createApp({
     next();
   });
   api.use(sameOriginWrites, requireJsonBody, express.json({ limit: JSON_BODY_LIMIT }), sessions.authenticate);
-  const deps = { store, services, sessions, env, limiters };
+  const deps = { store, services, sessions, env, limiters, clock };
   api.use(authRoutes(deps));
   api.use(attendanceRoutes(deps));
   api.use(payslipRoutes(deps));
@@ -80,11 +92,14 @@ export function createApp({
   api.use(feedbackRoutes(deps));
   api.use(passportRoutes(deps));
   api.use(dashboardRoutes(deps));
+  api.use(disputeRoutes(deps));
+  api.use(demoRoutes(deps));
   api.use(apiNotFound);
   app.use('/api', api);
 
   app.get('/p/:token', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'passport', 'index.html')));
-  app.use(express.static(PUBLIC_DIR, { maxAge: STATIC_MAX_AGE }));
+  // no-cache = always revalidate (cheap 304 via ETag), so a new release is never hidden behind a stale cached script.
+  app.use(express.static(PUBLIC_DIR, { setHeaders: (res) => res.set('Cache-Control', 'no-cache') }));
   app.use((req, res) => res.status(404).type('text/plain').send('Not found'));
   app.use(errorHandler(logError));
   return app;

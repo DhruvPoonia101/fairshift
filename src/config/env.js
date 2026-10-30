@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 
 const DEFAULT_PORT = 8080;
 const GENERATED_SECRET_BYTES = 32;
+export const DATA_STORES = Object.freeze(['memory', 'firestore']);
 
 function parseBool(value, fallback) {
   if (value === undefined || value === '') return fallback;
@@ -21,6 +22,10 @@ export function loadEnv(source = process.env, warn = console.warn) {
     sessionSecret = randomBytes(GENERATED_SECRET_BYTES).toString('hex');
     warn('SESSION_SECRET is not set: generated a random one. Sessions reset on restart.');
   }
+  const dataStore = (source.DATA_STORE || 'memory').toLowerCase();
+  if (!DATA_STORES.includes(dataStore)) {
+    throw new Error(`DATA_STORE must be one of: ${DATA_STORES.join(', ')}`);
+  }
   const demoMode = parseBool(source.DEMO_MODE, false);
   if (demoMode && nodeEnv === 'production') {
     warn('DEMO_MODE is on in production: anyone can log in. Set DEMO_MODE=false for real use.');
@@ -32,6 +37,8 @@ export function loadEnv(source = process.env, warn = console.warn) {
     demoMode,
     adminPassword: source.ADMIN_PASSWORD || null,
     sessionSecret,
+    dataStore,
+    googleCloudProject: source.GOOGLE_CLOUD_PROJECT || null,
     geminiApiKey: source.GEMINI_API_KEY || null,
     geminiModel: source.GEMINI_MODEL || null,
   });

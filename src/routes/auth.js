@@ -1,14 +1,11 @@
 import { Router } from 'express';
-import { ADMIN_ROLE, DEMO_ROLES, WORKER_ROLE } from '../config/constants.js';
-import { publicSectorView } from '../config/sectors.js';
+import { ADMIN_ROLE, WORKER_ROLE } from '../config/constants.js';
+import { DEMO_ROLES, SECTORS, orgIdFor, publicSectorView, sectorChoices } from '../config/sectors.js';
 import { notFound, unauthorized } from '../lib/errors.js';
 import { requireRole, safeCompare } from '../middleware/auth.js';
 import { v, validateBody } from '../middleware/validate.js';
 
-const ORG_BY_SECTOR = Object.freeze({
-  construction: 'org-construction',
-  college: 'org-college',
-});
+const ORG_IDS = Object.keys(SECTORS).map(orgIdFor);
 
 /** Who is signed in, plus the sector settings the UI needs (categories, roles, shifts). */
 async function describeSession(store, user) {
@@ -43,7 +40,7 @@ export function authRoutes({ store, sessions, env, limiters }) {
     const { role } = req.params;
     if (!env.demoMode || !DEMO_ROLES.includes(role)) throw notFound();
     const [kind, sector] = role.split('-');
-    const orgId = ORG_BY_SECTOR[sector];
+    const orgId = orgIdFor(sector);
     const session =
       kind === ADMIN_ROLE
         ? { ...(await store.admins.query(orgId))[0], role: ADMIN_ROLE }
@@ -55,7 +52,7 @@ export function authRoutes({ store, sessions, env, limiters }) {
   router.post(
     '/login/admin',
     limiters.login,
-    validateBody({ password: v.string({ max: 200 }), org: v.enum(Object.values(ORG_BY_SECTOR)) }),
+    validateBody({ password: v.string({ max: 200 }), org: v.enum(ORG_IDS) }),
     async (req, res) => {
       if (!env.adminPassword) throw notFound();
       if (!safeCompare(req.body.password, env.adminPassword)) {
@@ -69,7 +66,7 @@ export function authRoutes({ store, sessions, env, limiters }) {
 
   // Lets the sign-in screen show only the options that are switched on.
   router.get('/config', (req, res) => {
-    res.json({ demoMode: env.demoMode, adminLogin: Boolean(env.adminPassword) });
+    res.json({ demoMode: env.demoMode, adminLogin: Boolean(env.adminPassword), sectors: sectorChoices() });
   });
 
   router.post('/logout', (req, res) => {

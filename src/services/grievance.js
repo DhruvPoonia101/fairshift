@@ -26,20 +26,23 @@ const NEXT_STATUSES = Object.freeze({
   in_review: ['resolved'],
   resolved: [],
 });
+const SEVERITY_RANK = Object.freeze({ low: 0, medium: 1, high: 2 });
 const MIN_RESOLUTION_NOTE_LENGTH = 3;
 const TRACKING_CODE_GROUP = TRACKING_CODE_LENGTH / 2;
 
 /**
- * Rule-based severity suggestion (no AI): danger words win, then pay/safety words;
- * otherwise hazards default to medium and ordinary complaints to low.
+ * Rule-based severity suggestion (no AI): danger words win, then pay/safety words, but never below
+ * the category's own floor (hazards default to medium; the sector config can raise it).
  * @param {string} text
  * @param {{kind: string} | null} category
  */
 export function suggestSeverity(text, category) {
   const lower = text.toLowerCase();
-  if (HIGH_WORDS.some((w) => lower.includes(w))) return 'high';
-  if (MEDIUM_WORDS.some((w) => lower.includes(w))) return 'medium';
-  return category?.kind === 'hazard' ? 'medium' : 'low';
+  let found = 'low';
+  if (HIGH_WORDS.some((w) => lower.includes(w))) found = 'high';
+  else if (MEDIUM_WORDS.some((w) => lower.includes(w))) found = 'medium';
+  const floor = category?.kind === 'hazard' ? (category.minSeverity ?? 'medium') : 'low';
+  return SEVERITY_RANK[found] >= SEVERITY_RANK[floor] ? found : floor;
 }
 
 const normaliseCode = (code) => String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');

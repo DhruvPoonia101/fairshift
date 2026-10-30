@@ -45,7 +45,7 @@ function bar(minutes) {
 function restNotice(rest) {
   if (rest.level === 'none') return null;
   const reasons = rest.flags.map((f) =>
-    h('li', { text: t(`rest.reason.${f.rule}`, { time: hoursMinutes(f.params.minutes ?? 0), days: f.params.days ?? 0 }) }),
+    h('li', { text: t(`rest.reason.${f.rule}`, { ...f.params, time: hoursMinutes(f.params.minutes ?? 0) }) }),
   );
   return h(
     'section',
@@ -209,5 +209,6 @@ export async function renderHome(session, rerender) {
           iconButton('lock', t('home.enterCode'), { onclick: () => openCodeDialog(submit) }),
         ),
     weekList(today.recent),
+    h('a', { class: 'btn btn-block', href: '#records' }, icon('alert'), t('home.contestLink')),
   );
 }

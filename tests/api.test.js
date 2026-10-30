@@ -82,7 +82,9 @@ describe('platform and security basics', () => {
   });
 
   test('static pages are served and /p/:token serves the passport page', async () => {
-    assert.equal((await app.request('/')).status, 200);
+    const home = await app.request('/');
+    assert.equal(home.status, 200);
+    assert.equal(home.headers.get('cache-control'), 'no-cache', 'static files revalidate, so releases show up at once');
     assert.equal((await app.request('/p/abcdefghijklmnopqrstuvwx')).status, 200);
   });
 });

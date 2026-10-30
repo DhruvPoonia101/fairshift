@@ -9,11 +9,15 @@
  * @property {{ field: string, value: number }} [gte] inclusive lower bound on a numeric field
  * @property {{ field: string, value: number }} [lt] exclusive upper bound on a numeric field
  *
+ * Besides the collections, a store may expose `kind` ('memory' | 'firestore') and `ping()`, used by GET /health.
+ *
  * @typedef {object} Collection
  * @property {(doc: {id: string, orgId: string}) => Promise<object>} insert
  * @property {(orgId: string, id: string) => Promise<object | null>} get
  * @property {(orgId: string, id: string, patch: object) => Promise<object | null>} update
  * @property {(orgId: string, query?: Query) => Promise<object[]>} query
+ * @property {(orgId: string) => Promise<number>} deleteByOrg
+ *   Removes every document of one org (used by the demo reset) and returns how many. Never reaches another org.
  * @property {(field: string, value: string) => Promise<object | null>} findBy
  *   Global lookup on a unique field (share tokens, tracking hashes). The only cross-org read.
  */
@@ -28,9 +32,12 @@ export const COLLECTION_NAMES = Object.freeze([
   'grievances',
   'feedback',
   'passportEntries',
+  'payments',
+  'disputes',
+  'audit',
 ]);
 
-export const COLLECTION_METHODS = Object.freeze(['insert', 'get', 'update', 'query', 'findBy']);
+export const COLLECTION_METHODS = Object.freeze(['insert', 'get', 'update', 'query', 'findBy', 'deleteByOrg']);
 
 /** Fails fast at startup if a store implementation does not satisfy the contract. */
 export function assertRepository(store) {

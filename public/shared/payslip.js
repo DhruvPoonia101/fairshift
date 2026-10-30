@@ -39,6 +39,40 @@ function lineItem(line) {
   );
 }
 
+const COMPLIANCE_KIND = { ok: ['ok', 'check'], underpaid: ['danger', 'alert'], review: ['info', 'clock'] };
+
+const bigChip = (kind, iconName, text) => Object.assign(chip(kind, iconName, text), { className: `chip chip-${kind} chip-lg` });
+const reasonText = (reason) => t(`compliance.reason.${reason.key}`, reason.params);
+const complianceSpeech = (c) => [t(`compliance.${c.status}`), ...c.reasons.map(reasonText)].join('. ');
+
+/** "Paid correctly" or "Underpaid, here is why": a big icon + text badge, the reasons, and read-aloud. */
+function complianceCard(c) {
+  const [kind, iconName] = COMPLIANCE_KIND[c.status];
+  const amounts =
+    c.status === 'underpaid'
+      ? h(
+          'dl',
+          { class: 'amounts' },
+          h('dt', { text: t('compliance.expected') }),
+          h('dd', { text: money(c.expectedPaise) }),
+          h('dt', { text: t('compliance.paid') }),
+          h('dd', { text: money(c.paidPaise) }),
+          h('dt', { text: t('compliance.short') }),
+          h('dd', { class: 'short', text: money(c.shortfallPaise) }),
+        )
+      : null;
+  return h(
+    'section',
+    { class: `card stack-sm compliance ${c.status}`, 'aria-labelledby': 'comp-title' },
+    h('h2', { id: 'comp-title', class: 'row' }, icon('scale'), t('compliance.title')),
+    h('p', { role: 'status' }, bigChip(kind, iconName, t(`compliance.${c.status}`))),
+    c.reasons.length > 0 ? h('ul', { class: 'stack-sm' }, ...c.reasons.map((r) => h('li', { text: reasonText(r) }))) : null,
+    amounts,
+    h('p', { class: 'hint', text: t('compliance.note') }),
+    canSpeak ? iconButton('speaker', t('compliance.readAloud'), { onclick: () => speak(complianceSpeech(c)) }) : null,
+  );
+}
+
 function dayTable(days) {
   const head = ['date', 'in', 'out', 'hours', 'overtime'].map((k) => h('th', { scope: 'col', text: t(`payslip.col.${k}`) }));
   const rows = days.map((d) =>
@@ -64,7 +98,8 @@ export function renderPayslip(slip, { onDispute } = {}) {
   const earnings = slip.lines.filter((l) => l.kind === 'earning');
   const deductions = slip.lines.filter((l) => l.kind === 'deduction');
   const summary = t('payslip.summary', { netPaise: slip.netPaise, grossPaise: slip.grossPaise, deductionsPaise: slip.deductionsPaise });
-  const readAll = () => speak([summary, ...slip.lines.map((l) => `${t(`payslip.line.${l.key}`)}. ${explain(l)}`)].join(' '));
+  const readAll = () =>
+    speak([summary, complianceSpeech(slip.compliance), ...slip.lines.map((l) => `${t(`payslip.line.${l.key}`)}. ${explain(l)}`)].join(' '));
 
   return h(
     'div',
@@ -83,6 +118,7 @@ export function renderPayslip(slip, { onDispute } = {}) {
         canSpeak ? iconButton('x', t('payslip.stopReading'), { onclick: stopSpeaking }) : null,
       ),
     ),
+    complianceCard(slip.compliance),
     h('h2', { class: 'row' }, icon('plus'), t('payslip.earnings')),
     h('ul', { class: 'stack' }, ...earnings.map(lineItem)),
     h('h2', { class: 'row' }, icon('dash'), t('payslip.deductions')),

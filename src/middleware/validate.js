@@ -88,6 +88,12 @@ export const validateBody = (schema) => (req, res, next) => {
   next();
 };
 
+/** Validates the query string into `req.valid` (Express 5 makes `req.query` read-only). */
+export const validateQuery = (schema) => (req, res, next) => {
+  req.valid = validate(schema, req.query);
+  next();
+};
+
 export const validateParams = (schema) => (req, res, next) => {
   validate(schema, req.params);
   next();

@@ -4,6 +4,10 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { COMMON_CATEGORIES, SECTORS } from '../src/config/sectors.js';
+import { DISPUTE } from '../src/config/constants.js';
+import { AUDIT_ACTIONS } from '../src/services/audit.js';
+import { COMPLIANCE_REASON_KEYS, COMPLIANCE_STATUS } from '../src/services/compliance.js';
+import { COMPONENT_IDS } from '../src/services/decentWork.js';
 import { FATIGUE_RULES } from '../src/services/fatigue.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -71,6 +75,15 @@ test('dynamic keys: every category, role, fatigue rule and API error code has a 
   for (const key of ['regular', 'overtime', 'pf', 'esi', 'esi_not_applicable', 'advance']) {
     needed.push(`payslip.line.${key}`, `payslip.explain.${key}`);
   }
+
+  for (const key of COMPLIANCE_REASON_KEYS) needed.push(`compliance.reason.${key}`);
+  for (const status of Object.values(COMPLIANCE_STATUS)) needed.push(`compliance.${status}`, `complianceAdmin.status.${status}`);
+  for (const action of AUDIT_ACTIONS) needed.push(`dispute.timeline.${action}`);
+  for (const category of DISPUTE.CATEGORIES) needed.push(`dispute.cat.${category}`);
+  for (const status of ['submitted', 'under_review', 'approved', 'rejected']) needed.push(`dispute.status.${status}`);
+  for (const actor of ['worker', 'admin', 'system']) needed.push(`dispute.by.${actor}`);
+  for (const id of COMPONENT_IDS) needed.push(`dws.component.${id}`, `dws.driver.${id}`, `dws.how.${id}`);
+  for (const band of ['healthy', 'needs_attention', 'at_risk', 'unknown']) needed.push(`dws.band.${band}`);
 
   const codes = new Set(['too_large', 'bad_json', 'server_error']);
   for (const file of sourceFiles(path.join(root, 'src'), '.js')) {
