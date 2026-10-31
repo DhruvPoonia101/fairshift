@@ -1,3 +1,4 @@
+import { MAX_PHOTO_BYTES, decodeJpegBase64 } from '../lib/image.js';
 import { isDayKey, isMonthKey } from '../lib/time.js';
 import { unprocessable } from '../lib/errors.js';
 
@@ -53,6 +54,13 @@ export const v = {
 
   month: ({ optional = false } = {}) =>
     rule((value) => (isMonthKey(value) ? value : fail('format')), optional),
+
+  /** A JPEG as base64 (no "data:" prefix), judged by its bytes and capped once decoded. The reason never contains the picture. */
+  jpeg: ({ maxBytes = MAX_PHOTO_BYTES, optional = false } = {}) =>
+    rule((value) => {
+      decodeJpegBase64(value, maxBytes); // throws type, too_large, format or not_jpeg
+      return value;
+    }, optional),
 };
 
 /**

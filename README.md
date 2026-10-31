@@ -9,6 +9,34 @@ someone is hurt, and lose their skills record every time they change jobs. Emplo
 about to quit until it is serious. FairShift is one codebase with **one worker app** (mobile first, icon first, English /
 Hindi / Tamil, read-aloud and voice input) and **one employer dashboard**, configured per industry.
 
+## Screenshots
+
+Taken from the running app with `DEMO_MODE=true` and the seeded demo data. Phone screens are 360 px wide. They are static files in `docs/screenshots/`. **Note:** they were taken before the light-only redesign (see "Design system and navigation"): the app now has one light theme, a new two-column homepage and coloured icons, so the dark screens here are out of date and will be re-shot.
+
+### Worker app (phone)
+
+| Home | Pay: last month, underpaid | Contest a day |
+| --- | --- | --- |
+| ![Worker home: greeting, today card with one main button, quick actions, rest alert, five-tab bottom bar](docs/screenshots/worker-home.png) | ![Payslip for last month with the "Underpaid, here is why" explanation](docs/screenshots/worker-payslip-underpaid.png) | ![The attendance dispute dialog](docs/screenshots/worker-dispute.png) |
+| Fixed top bar (Feedback, Settings, language), a *today* card with **one** main button, a quick-actions grid, a slim expandable rest alert and the five-tab bottom bar. | The take-home pay, then **Underpaid, here is why**: what should have been paid, what was paid and the shortfall, with read-aloud. | Pick what is wrong, correct the time and add a note; the employer decides and every step goes to the audit trail. |
+
+| Settings | No signal | Light theme |
+| --- | --- | --- |
+| ![The Settings page: language, text size, high contrast, log out](docs/screenshots/worker-settings.png) | ![The offline banner and a check-in waiting to be sent](docs/screenshots/worker-offline.png) | ![The worker home screen in the light theme](docs/screenshots/light-mode.png) |
+| Language, three text sizes, **High contrast**, and sign out; remembered on the phone. | **You're offline, 1 action waiting**: the check-in is saved with the time it was made and sent by itself later (see Offline mode). | The same Home screen in the light theme (the only theme now). |
+
+### Employer dashboard and landing page
+
+| Decent Work Score | Attendance disputes |
+| --- | --- |
+| ![Employer overview with the Decent Work Score as the hero card, with the left sidebar](docs/screenshots/admin-decent-work-score.png) | ![Employer queue of attendance disputes with approve and reject actions](docs/screenshots/admin-disputes.png) |
+| The score is the hero of the Overview: the gauge, what makes it up and what pulls it down. The fixed left sidebar is shown from 900 px. | Approving a dispute corrects the record and recalculates hours, overtime, rest warnings and pay. |
+
+| Hospital: People care | Landing page |
+| --- | --- |
+| ![CityCare Hospital, People care: staff who need rest under the night-shift rules](docs/screenshots/hospital-people-care.png) | ![Landing page: the Judge tour button and the three industries](docs/screenshots/landing-three-sectors.png) |
+| The third sector, CityCare Hospital: nurses flagged for too many night shifts or too little rest. | Three industries from one codebase, and the **Judge tour** button. |
+
 ## Problem to feature mapping
 
 | Pain point | Feature | Where in code |
@@ -75,7 +103,7 @@ tests/                   unit + API tests (node:test, no test framework)
 - `helmet` with a strict CSP (`default-src 'self'`, no inline script or style, no external origins), `Permissions-Policy` limited to camera / microphone / geolocation for our own origin.
 - Signed JWT in an `httpOnly`, `SameSite=Strict` cookie (`Secure` in production). Cross-site writes are also rejected by an Origin check and a JSON-only body rule.
 - `express-rate-limit`: global limit plus tighter limits on login and report / feedback endpoints; `trust proxy` set for Cloud Run. Limits are per instance (in memory).
-- 10 KB JSON body limit; server-side validation of every field (type, length, enum, id, date) in `src/middleware/validate.js`; error responses list field names and reasons, never values.
+- 10 KB JSON body limit (the two report routes accept a photo of up to 200 KB on top of that: see "Report photos"); server-side validation of every field (type, length, enum, id, date) in `src/middleware/validate.js`; error responses list field names and reasons, never values.
 - Authorization on every route: workers read only their own data, admins only their own org; checked by tests (cross-worker and cross-org requests).
 - Output is always written with `textContent` / `createElement`, never `innerHTML` with user data.
 - **Attendance changes are audited.** There is no endpoint that edits hours directly. The only way a record changes is an approved dispute, and the correction is written to the audit trail *before* the record is updated (if the audit write fails, nothing changes). Audit entries are only ever created, carry a SHA-256 digest of their content (`isIntact`), and the worker can read every entry about their own attendance. A dispute can be decided once: decisions on the same dispute are serialised in the process, the correction sets absolute times (so a retry is harmless), and the record must still match what it was when the dispute was filed.
@@ -86,8 +114,8 @@ tests/                   unit + API tests (node:test, no test framework)
 
 ## Accessibility measures
 
-- WCAG AA colour contrast, verified by `tests/contrast.test.js` for the light and dark themes (4.5:1 text, 3:1 borders and focus ring) and 7:1 for both high-contrast variants. Every token pair is tested; the thresholds are never relaxed, so a palette change that fails them fails the build.
-- **Display settings** (worker app, **Settings**): colour theme (**System**, **Light**, **Dark**), three text sizes (normal, large, extra large) and a **High contrast** switch, remembered on the device in `localStorage` (`fairshift.prefs`) and applied before the first paint by `public/shared/prefs-boot.js`, so there is no flash. The theme also has a toggle in every top bar. High contrast works on top of both themes and is tested at 7:1 (WCAG AAA) for text. Logic and tests: `public/shared/prefs.js`, `tests/prefs.test.js` (the boot script is run against a fake page and compared with `prefs.js`).
+- WCAG AA colour contrast, verified by `tests/contrast.test.js` for the light theme (4.5:1 text, 3:1 borders and focus ring), 7:1 for the high-contrast variant, and 4.5:1 for every icon colour on its own tinted tile and on the white and ivory surfaces. Every token pair is tested; the thresholds are never relaxed, so a palette change that fails them fails the build.
+- **Display settings** (worker app, **Settings**): three text sizes (normal, large, extra large) and a **High contrast** switch, remembered on the device in `localStorage` (`fairshift.prefs`) and applied before the first paint by `public/shared/prefs-boot.js`, so there is no flash. There is **one light theme**: no dark mode, no theme toggle, and an old saved "dark" choice from an earlier version is ignored. High contrast works on top of it and is tested at 7:1 (WCAG AAA) for text; it also turns the coloured icon tints into plain black on white and hides the decorative 3D scene. Logic and tests: `public/shared/prefs.js`, `tests/prefs.test.js` (the boot script is run against a fake page and compared with `prefs.js`).
 - Navigation targets are 48 px or larger (tabs 68 px); the current page is shown by icon, label, weight, underline and an indicator bar, not colour alone. See "Design system and navigation" below.
 - Every screen in both apps shows a loading skeleton (no layout shift), a friendly empty state, and an error state with a **Try again** button, in English, Hindi and Tamil (`public/shared/states.js`).
 - Skip-to-content link, landmarks (`header`, `nav`, `main`), every input has a `<label>`, visible `:focus-visible` outline, `aria-current` on the active tab / section, `aria-live` regions for status and toasts.
@@ -98,18 +126,20 @@ tests/                   unit + API tests (node:test, no test framework)
 
 ## Design system and navigation
 
-Calm, premium, trustworthy: layered surfaces, hairline borders, soft shadows, one accent (champagne gold) and **no blue anywhere** (`tests/contrast.test.js` scans every style, page, icon and script for blue).
+Calm, premium, trustworthy, and light only: warm ivory background, deep ink-navy text, **saffron-gold** as the primary accent (never green), white surfaces with soft layered shadows. Each feature also has its own colour (see "Icon colours" below).
 
 **Tokens.** All colours, spacing, radius, elevation and motion values are defined once at the top of `public/shared/base.css`; screens only use `var(--...)`.
 
-| | Dark | Light |
-| --- | --- | --- |
-| Background / surfaces | ink `#0B0E12`, `#12161C`, `#181D24` | warm ivory `#FAF7F2`, white, `#F8F4EC` |
-| Text / muted | ivory `#F3EEE4` / `#A8A398` | deep ink `#14110D` / `#5C5546` |
-| Accent (text, borders) | champagne gold `#D6B26A` | deep gold `#8A6A1F` |
-| Fills (buttons) | gold `#D6B26A` with ink text | gold `#D6B26A` with ink text |
+| | Light (the only theme) |
+| --- | --- |
+| Background / surfaces | warm ivory `#FAF6EC`, white `#FFFFFF`, `#F6F0E2` |
+| Text / muted | ink-navy `#121B33` / slate `#4F5669` |
+| Accent (text, borders) | deep saffron `#8F5300` |
+| Fills (buttons) | saffron-gold `#F5A623` with ink-navy text |
 
-Status colours (success green, warning orange, danger red, neutral info) are always paired with an icon and a word. The dark block is written twice (device preference, and the explicit choice) and a test checks the two are identical. The theme follows the device until someone chooses (top-bar toggle or Settings); the choice is remembered per device and applied before first paint.
+Status colours (success green, warning orange, danger red, neutral info) are always paired with an icon and a word. The browser colour (`theme-color` and the web manifest) is the ivory background.
+
+**Icon colours.** Each feature has one tone: **pay** saffron, **report / danger** coral red, **speak up** teal, **skills and passport** indigo, **check-in** emerald, **rest** violet, **language** sky blue, **payroll / export** amber (`--ic-*` tokens in `base.css`). The icon sits in a rounded tile that is a 12% tint of its strong colour (`data-tone` on an element sets `--tone` and `--tone-soft`; `tests/contrast.test.js` checks every strong colour against its tile, the white and ivory surfaces at 4.5:1, and that each tile really is a 12% tint). They are used on the landing cards, the worker Home tiles and navigation, the employer sidebar and KPI tiles. Every pay or wallet icon is now a clean inline-SVG **rupee** glyph (`rupee` in `public/shared/icons.js`, no font needed): the Pay nav item, the Home "My pay" tile, payslip headings, the landing pay card and the employer Payroll item. Blue is allowed only for the language and skills tones; the test fails on any other vivid blue.
 
 **Type.** Headings use **Fraunces** (display serif) and the interface **Inter**, both self-hosted variable woff2 files in `public/fonts` (Latin only, about 83 KB together, `font-display: swap`, no CDN, CSP unchanged). Body text is 16 px or larger with a 1.6 line height. Hindi and Tamil use the system font stack (Noto, Nirmala UI), which reads better than a Latin face with fallbacks. The `@fontsource-variable/*` packages are **devDependencies only**: `npm run fonts` (`scripts/copy-fonts.mjs`) copies the Latin files and their licences into `public/fonts`; nothing about fonts is a runtime dependency and the Docker image (`npm ci --omit=dev`) does not contain them. The fonts are cached for a week and are part of the offline precache.
 
@@ -117,15 +147,30 @@ Status colours (success green, warning orange, danger red, neutral info) are alw
 
 **Navigation** (both apps; `public/shared/chrome.js`, `public/worker/nav.js`)
 
-- **Top bar** on every page, fixed to the top: logo and wordmark on the left; on the right the light/dark toggle, the language selector (a compact globe button on phones, a normal select from 600 px) and sign-out (worker phones: in Settings).
+- **Top bar** on every page, fixed to the top: logo and wordmark on the left; on the right the language selector (a compact globe button on phones, a normal select from 600 px) and sign-out (worker phones: in Settings).
 - **Worker, 900 px and up:** a fixed left sidebar with icon and label for all seven destinations: **Home, Pay, Reports, Disputes, Passport**, then **Feedback** and **Settings**.
-- **Worker, phones and small tablets:** a fixed bottom bar with five tabs (Home, Pay, Reports, Disputes, Passport); **Feedback** and **Settings** are labelled icon buttons in the top bar. There is no separate "Me" tab: **Settings** holds language, colour theme, text size, high contrast and sign out. *Disputes* is the attendance-and-disputes screen (its address is still `#records`, which the Judge tour uses).
-- **Employer:** the same top bar and theme toggle; a fixed sidebar on desktop; a horizontally scrollable bottom bar on phones.
+- **Worker, phones and small tablets:** a fixed bottom bar with five tabs (Home, Pay, Reports, Disputes, Passport); **Feedback** and **Settings** are labelled icon buttons in the top bar. There is no separate "Me" tab: **Settings** holds language, text size, high contrast and sign out. *Disputes* is the attendance-and-disputes screen (its address is still `#records`, which the Judge tour uses).
+- **Employer:** the same top bar; a fixed sidebar on desktop; a horizontally scrollable bottom bar on phones.
 - Tables in the employer app become labelled cards on phones (`labelCells` in `public/shared/dom.js`), so no screen scrolls sideways at 360 px.
 
 **Pages.** The worker Home reads top to bottom: greeting, a prominent *today* card with **one** primary action (I'm at work / I'm leaving work), a quick-actions grid (scan QR, type code, pay, reports, disputes, passport, feedback), then slim expandable alerts: rest warnings stay on screen but compact. On the employer Overview the Decent Work Score card is the hero. The landing page has a hero, two sign-in buttons, the Judge tour button, three sector cards and a short feature list.
 
-**Motion** uses two short durations and one easing curve and is switched off by `prefers-reduced-motion`.
+**Homepage** (`public/index.html`, `public/landing.js`, `public/landing.css`, `public/shared/fx.js`). Two columns from 60 rem: on the left a **sign-in card** (Worker / Employer tabs, the employer password form when it is switched on, a **Try the demo** list with a one-tap worker and employer account for Construction, College and Hospital, and the Judge tour button); on the right the headline *Know your pay. Speak up safely. Work fair hours.*, three short value points with coloured icons, and the 3D scene. On a phone the order is headline, sign-in card, scene, and the page order is the same for keyboard users (the card comes before the decorative scene). Sign-in calls are unchanged (`/api/demo-login/:role`, `/api/login/admin`, `/api/config`). There is no worker PIN or on-screen keypad in this prototype (worker sign-in is a demo account until phone OTP exists), so there is none on the card.
+
+- *The scene* (CSS 3D and inline SVG only, about 5 KB, no WebGL, no library, no image): a floating stack of three payslips that tilts toward the pointer (at most 8 degrees), a slowly spinning 3D rupee coin (`transform-style: preserve-3d`), a layered skyline (crane, a hospital with a pulsing cross, a campus building) drifting in parallax, and soft shapes floating behind. Only `transform` and `opacity` change. It pauses while the tab is hidden or the scene is off screen (`IntersectionObserver`), tilt needs a fine pointer that can hover (so it is off on touch), and everything is disabled under `prefers-reduced-motion`.
+- *Interactions:* cards tilt up to 4 degrees on hover with a highlight that follows the pointer, primary buttons are magnetic (up to 6 px, hover devices only), blocks below the fold fade up one after another as they arrive, buttons press to 0.98. None of it runs without a fine hovering pointer, and none under reduced motion.
+- *Sections below the hero:* **How it works** (check in, see your pay, speak up safely, numbered, with coloured icons), **Three industries, one app** (Construction in saffron, College in indigo, Hospital in teal, each with a gently bobbing icon), an **SDG 8** strip (target 8.5 equal pay for work of equal value, 8.8 safe working environments) and trust chips (works offline, English / Hindi / Tamil, name stays hidden if you choose: the anonymous option is a choice on the report form, not the default), then the footer.
+- *Budget:* `landing.css` about 10 KB, `fx.js` about 7 KB, no image other than the logo, no inline script or style, the CSP is unchanged. `tests/landing.test.js` checks all of this.
+
+**Motion** (`public/shared/motion.css`, `public/shared/motion.js`; loaded by the landing, worker and employer pages). Original and subtle, no library, no build step, nothing that needs a new origin in the CSP.
+
+- *Tokens:* durations 150 / 250 / 450 ms and one ease-out curve (`--m-fast`, `--m-base`, `--m-slow`, `--m-ease`).
+- *What moves:* only `transform` and `opacity` (cards lift 3 px with a soft gold glow that is an overlay fading in; buttons press to 0.98 with a faint shine; nav items get a sliding pill and a growing underline; icons nudge 2 px; the new screen slides in when you change a worker tab or an employer section; the skeleton shimmer is a moving highlight; toasts slide in; bars fill). **Two documented exceptions:** the success check on a toast is *drawn* (`stroke-dashoffset` on a 24 px icon) and the Decent Work Score gauge *sweeps* (the dash length is set from `motion.js`, because a gauge arc cannot be scaled).
+- *Landing:* see "Homepage" below.
+- *Numbers:* the money on a payslip, the Decent Work Score and the KPI tiles count up once (about 700 ms) and the gauge sweeps from 0 to its value. The last frame is the original text byte for byte, so a count can never end on a wrong figure. Screen readers get the final value at once: while it counts the final text sits in a visually hidden span, the moving digits are `aria-hidden` and `aria-live` is off until the end.
+- *Reduced motion:* every animation lives inside `prefers-reduced-motion: no-preference`, and one block under `reduce` switches all animation and transition off (`motion.js` does nothing either). Hover effects only exist under `(hover: hover)`, so a touch screen never gets a stuck hover. Nothing that hides content at the start of an animation exists outside the no-preference block, so reduce users always see the finished state.
+- *Offline:* these files and `fx.js` are in the precache list (`/precache.json` is built from the folders), and `CACHE_REVISION` in `src/lib/precache.js` is part of the cache version, so a release always replaces the phones' stored copy.
+- *Tests:* `tests/motion.test.js` (the reduced-motion block, only transform/opacity, fill modes, tokens, hover guard, high-contrast and text-size rules, no new colours, hero SVG size and contents, the count-up maths and that it ends exactly, the precache).
 
 ## Demo guide
 
@@ -139,7 +184,7 @@ In demo mode (`DEMO_MODE=true`) the **I'm at work** button skips the geofence di
 Open `/` and press **I am a worker** or **I am an employer**; the demo buttons sign you in instantly
 (`POST /api/demo-login/:role` for `worker-construction`, `worker-college`, `admin-construction`, `admin-college`).
 
-**Judge tour (about 90 seconds)**: on the landing page (demo mode only) press **Judge tour (3 steps)**. A small guide panel walks you across the real screens, signing in both demo accounts for you: 1) the worker contests a day, 2) the employer approves it, 3) the worker sees the corrected take-home pay and the change history. Each of steps 1 and 2 also has a **Do it for me** button, you can go **Back** or **Next**, **Skip tour** (or press Esc) at any time, and everything is keyboard operable. The tour step is kept in `sessionStorage`, so it follows you between the worker and employer pages and disappears when the tab closes. Code: `public/shared/tour.js` (step state), `public/shared/tour-ui.js` (panel), tests in `tests/tour.test.js`. It uses the normal API only, so it needs no new environment variables.
+**Judge tour (about 90 seconds)**: the button is on the landing page (see Screenshots). In demo mode, press **Judge tour (3 steps)**. A small guide panel walks you across the real screens, signing in both demo accounts for you: 1) the worker contests a day, 2) the employer approves it, 3) the worker sees the corrected take-home pay and the change history. Each of steps 1 and 2 also has a **Do it for me** button, you can go **Back** or **Next**, **Skip tour** (or press Esc) at any time, and everything is keyboard operable. The tour step is kept in `sessionStorage`, so it follows you between the worker and employer pages and disappears when the tab closes. Code: `public/shared/tour.js` (step state), `public/shared/tour-ui.js` (panel), tests in `tests/tour.test.js`. It uses the normal API only, so it needs no new environment variables.
 
 **Two-minute click path**
 
@@ -160,7 +205,7 @@ Open `/` and press **I am a worker** or **I am an employer**; the demo buttons s
 ```bash
 npm install
 npm start          # PORT defaults to 8080
-npm test           # node:test, no extra dependencies
+npm test           # node:test, no extra dependencies (549 tests)
 ```
 
 Requires Node 20+.
@@ -190,6 +235,10 @@ Real worker authentication would be a phone OTP; this prototype only has demo wo
 ## Offline mode (worker app)
 
 The worker app opens with no signal and keeps what the worker does until there is one. Everything below is covered by tests; see "Known limitations" for what was not checked in a real browser.
+
+<img src="docs/screenshots/worker-offline.png" alt="The offline banner and a check-in waiting to be sent" width="280">
+
+*No signal: the banner counts what is waiting, and the check-in is saved on the phone with the time it was made.*
 
 **What works with no signal**
 
@@ -236,6 +285,28 @@ The worker app opens with no signal and keeps what the worker does until there i
 - **The trade-off, plainly.** (1) The server cannot prove the code came from a good random generator, so it can only check shape, variety and uniqueness; a client could choose a poor code for itself, which only weakens that one report's privacy. Because codes are 80 bits, nobody can pre-claim or collide with another worker's code in practice. (2) The organisation token is shared by all of its workers, so whoever holds one can file anonymous items for that organisation (any of its workers could already do so); it is rate limited per IP and expires. A per-person blind token (see the limitation below) would stop even that. (3) The employer sees "Recorded offline" on an anonymous report, which says the reporter had no signal at that moment. (4) Server-made codes (the older path) are still accepted for online reports.
 
 **Try it.** Chrome DevTools > Network > *Offline* (or stop the server), sign in as the demo worker, check in, file an anonymous report (note the code on screen), contest a day, give feedback; the banner counts them. Go back online (or press **Sync now**) and watch each turn to *Sent*; as the employer the report and dispute carry the **Recorded offline** badge. For the 401 case, restart the server with a different `SESSION_SECRET`.
+
+## Payroll export (employer)
+
+**Payroll** page: month tabs for the last three months, a one-line summary above the table ("N workers have a possible shortfall this month" with the total), the roster table, and an **Export CSV** button (the one primary action, top right). The button is a plain download link to `GET /api/admin/payroll/export?month=YYYY-MM`.
+
+- Admin only and scoped to the signed-in employer's organisation (a worker gets 403, nobody signed in gets 401, another organisation's workers never appear). `month` is validated as `YYYY-MM`; anything else gets a 422 that names the field and never echoes the input. Without a month it exports last month.
+- `text/csv; charset=utf-8` with `Content-Disposition: attachment; filename="fairshift-payroll-<org>-<month>.csv"`, a byte-order mark so Excel reads Hindi and Tamil names, and CRLF lines. Columns: `worker name, worker code, days, regular hours, overtime hours, gross, PF, ESI, net, paid, shortfall, compliance status`. Money is integer paise inside the server and rupees with two decimals in the file (`rupees()` does it with integers, never a float); hours have two decimals. `paid` is blank when no payment was recorded.
+- **CSV injection:** any cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading apostrophe, and a cell with a comma, quote or line break is quoted with quotes doubled (`src/lib/csv.js`). A worker named `=HYPERLINK(...)` opens as text.
+- The figures come from the same functions as the payslip and the compliance report (`monthlyRows` in `src/services/payroll.js`), so the file, the screen and the payslip cannot disagree. Tests: `tests/payroll-export.test.js`.
+
+## Report photos
+
+A hazard or complaint report can carry **one optional photo** (the worker's **Report** screen: **Add photo (optional)**, then a preview with **Remove photo**). The note under the picker, in all three languages: *Photos can show faces or places. Do not include people if you want to stay anonymous.*
+
+- **Made small on the phone, before anything is sent** (`public/shared/photo.js`): drawn on a canvas at no more than 1024 px on the long side and saved as a JPEG at quality 0.6. Saving from a canvas writes a brand-new file, so the camera's EXIF data (GPS place, time, phone model) is not carried over. If it is still over 150 KB it is tried once more at a lower quality; if that is still too big the worker gets a friendly message and nothing is attached. A file that is not an image is refused. The preview is a `data:` image, so the CSP is unchanged (no `blob:`).
+- **Server** (`src/lib/image.js`, `src/middleware/validate.js`): the photo travels as base64 in the report's JSON, is judged by its bytes (JPEG start and end markers, not a name or a claimed type), is capped at **200 KB decoded**, and is stored on the report document. The body limit is raised to 320 KB for the two report routes only, and only the picture may use it: everything else in the request still has to fit in 10 KB. Errors name the field and a short reason (`too_large`, `not_jpeg`, `format`, `type`), never the content. The picture is never logged, never in a list and never echoed back (the answer says `hasPhoto: true`).
+- **Anonymous reports keep zero identity.** The photo is the only thing added to the record. It can still show a face or a place, which is why the note is there.
+- **Offline.** The photo rides in the same request body, so a report made with no signal keeps it in the IndexedDB outbox and sends it later under the *same* `Idempotency-Key` (one report, one photo, even if the answer was lost). Once sent, the picture is removed from the phone's copy.
+- **Employer.** A small thumbnail (alt text, a real button) on the report; selecting it opens the photo larger in a native `<dialog>` (focus trapped, Esc closes, focus returns). The picture comes from `GET /api/admin/grievances/:id/photo`: employer of that organisation only (other organisations get 404), `image/jpeg`, `Cache-Control: private, no-store`, `nosniff`.
+- **Reset demo data** deletes the photos with the reports; the seeded demo data has none.
+- Tests: `tests/report-photo.test.js` (size cap, non-JPEG, anonymous identity, offline round trip with a dropped answer, reset on the memory and Firestore stores, organisation isolation, the 10 KB rule).
+- *Not covered here:* the camera and the file picker themselves (they need a real phone). The canvas pipeline was checked in a browser (a 3000 x 2000 image came out 1024 x 683 and 18 KB; a non-image and an incompressible noise image were refused).
 
 ## Reset demo data
 

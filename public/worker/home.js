@@ -1,7 +1,7 @@
 import { ApiError } from '../shared/api.js';
 import { cancelButton, chip, field, h, iconButton, openDialog, showError, toast, busy } from '../shared/dom.js';
 import { dayLabel, hoursMinutes, timeIst } from '../shared/format.js';
-import { icon } from '../shared/icons.js';
+import { icon, toneOf } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
 import { overlayToday } from '../shared/actions.js';
 import { outbox } from '../shared/outbox.js';
@@ -105,7 +105,7 @@ function todayCard(today, action) {
 /** A big, labelled tile: a link to a screen, or a button for an action on this screen. */
 function tile(iconName, label, props) {
   const { href, onclick } = props;
-  return h(href ? 'a' : 'button', { class: 'quick-tile', ...(href ? { href } : { type: 'button', onclick }) }, h('span', { class: 'quick-icon', 'aria-hidden': 'true' }, icon(iconName)), h('span', { text: label }));
+  return h(href ? 'a' : 'button', { class: 'quick-tile', ...(href ? { href } : { type: 'button', onclick }) }, h('span', { class: 'quick-icon', 'data-tone': toneOf(iconName), 'aria-hidden': 'true' }, icon(iconName)), h('span', { text: label }));
 }
 
 function weekList(recent) {
@@ -233,7 +233,7 @@ export async function renderHome(session, rerender) {
   const quick = [
     today.status !== 'working' && canScan ? tile('qr', t('home.scan'), { onclick: () => openScanner(submit) }) : null,
     today.status !== 'working' ? tile('lock', t('home.enterCode'), { onclick: () => openCodeDialog(submit) }) : null,
-    tile('wallet', t('tab.pay'), { href: '#pay' }),
+    tile('rupee', t('tab.pay'), { href: '#pay' }),
     tile('alert', t('tab.report'), { href: '#report' }),
     tile('calendar', t('tab.disputes'), { href: '#records' }),
     tile('badge', t('tab.passport'), { href: '#passport' }),

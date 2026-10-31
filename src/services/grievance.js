@@ -69,6 +69,7 @@ function present(g) {
     month: g.month ?? null,
     anonymous: g.anonymous,
     recordedOffline: Boolean(g.recordedOffline),
+    hasPhoto: Boolean(g.photo), // only whether there is one: the picture itself is fetched on its own (photoFor)
     createdAt: g.createdAt,
     updatedAt: g.updatedAt,
     resolutionNote: g.resolutionNote,
@@ -96,7 +97,7 @@ export function createGrievanceService({ store, clock, secret }) {
      * `user` is null for an anonymous submission that carries no sign-in at all.
      * @returns {Promise<{grievance: object, trackingCode?: string}>}
      */
-    async create(user, org, { category, text, anonymous, source = 'manual', month, trackingCode: clientCode }, capture, id) {
+    async create(user, org, { category, text, anonymous, source = 'manual', month, trackingCode: clientCode, photo }, capture, id) {
       const categoryDef = findCategory(org.sector, category);
       if (!categoryDef) throw unprocessable('invalid_category', 'Unknown category.');
       const now = clock.now();
@@ -113,6 +114,9 @@ export function createGrievanceService({ store, clock, secret }) {
         anonymous,
         resolutionNote: '',
         updatedAt: now,
+        // The picture (already checked as a JPEG by the route) is stored on the report and nowhere else. It is the only
+        // thing an anonymous report carries beyond its words, and it is never logged, listed or echoed back.
+        ...(photo ? { photo: { mime: 'image/jpeg', data: photo, bytes: Buffer.from(photo, 'base64').length } } : {}),
       };
       if (anonymous) {
         if (clientCode !== undefined && !isValidClientCode(clientCode)) {
@@ -171,6 +175,13 @@ export function createGrievanceService({ store, clock, secret }) {
       return items
         .sort((a, b) => b.createdAt - a.createdAt)
         .map((g) => ({ ...present(g), worker: g.anonymous ? null : (names.get(g.workerId) ?? null) }));
+    },
+
+    /** The picture of one report of this organisation, as bytes. Another organisation's report, or one without a picture, is "not found". */
+    async photoFor(orgId, id) {
+      const record = await store.grievances.get(orgId, id);
+      if (!record?.photo) throw notFound('No photo for this report.');
+      return Buffer.from(record.photo.data, 'base64');
     },
 
     /** Moves a grievance forward (open -> in review -> resolved); resolving needs a note. */

@@ -85,8 +85,10 @@ export function createQueue({ storage, now = Date.now, newKey }) {
 
   /** Same meaning (what, for whom) ignoring the capture time and the tracking code (a double tap makes a new code). */
   function basisOf(spec) {
-    const { capturedAt, trackingCode, ...rest } = spec.request.body ?? {};
-    return JSON.stringify([spec.kind, spec.anonymous, spec.ownerId ?? null, spec.request.path, Object.entries(rest).sort(([a], [b]) => a.localeCompare(b))]);
+    // A photo is large: only its length and last characters stand for it, so the basis stays small in storage.
+    const { capturedAt, trackingCode, photo, ...rest } = spec.request.body ?? {};
+    const mark = typeof photo === 'string' ? [`photo:${photo.length}:${photo.slice(-32)}`] : [];
+    return JSON.stringify([spec.kind, spec.anonymous, spec.ownerId ?? null, spec.request.path, Object.entries(rest).sort(([a], [b]) => a.localeCompare(b)), ...mark]);
   }
 
   return {

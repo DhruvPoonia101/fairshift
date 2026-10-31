@@ -1,7 +1,7 @@
 import { h, toast } from '../shared/dom.js';
 import { icon } from '../shared/icons.js';
 import { mountLanguageSwitcher, t } from '../shared/i18n.js';
-import { TEXT_SIZES, THEMES, deviceStorage, readPrefs, setPref } from '../shared/prefs.js';
+import { TEXT_SIZES, deviceStorage, readPrefs, setPref } from '../shared/prefs.js';
 
 /** One row of buttons where exactly one is pressed (aria-pressed), applied and remembered at once. */
 function choice({ id, label, hint, values, current, text, onChoose }) {
@@ -26,7 +26,7 @@ function choice({ id, label, hint, values, current, text, onChoose }) {
   );
 }
 
-/** Theme, text size and contrast: applied at once, remembered on this device. */
+/** Text size and contrast: applied at once, remembered on this device. */
 function appearance() {
   const storage = deviceStorage();
   const root = document.documentElement;
@@ -44,7 +44,6 @@ function appearance() {
     'section',
     { class: 'card stack', 'aria-labelledby': 'appearance-title' },
     h('h2', { id: 'appearance-title', class: 'row' }, icon('sun'), t('me.display')),
-    choice({ id: 'theme', label: t('theme.label'), hint: t('theme.hint'), values: THEMES, current: prefs.theme, text: (v) => t(`theme.${v}`), onChoose: set('theme') }),
     choice({ id: 'size', label: t('me.textSize'), hint: t('me.textSizeHint'), values: TEXT_SIZES, current: prefs.textSize, text: (v) => t(`me.size.${v}`), onChoose: set('textSize') }),
     h('label', { class: 'check', for: 'settings-contrast' }, contrast, h('span', {}, h('strong', { text: t('me.contrast') }), h('span', { class: 'hint', text: ` ${t('me.contrastHelp')}` }))),
   );

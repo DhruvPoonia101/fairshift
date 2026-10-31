@@ -9,7 +9,7 @@ import { AUDIT_ACTIONS } from '../src/services/audit.js';
 import { COMPLIANCE_REASON_KEYS, COMPLIANCE_STATUS } from '../src/services/compliance.js';
 import { COMPONENT_IDS } from '../src/services/decentWork.js';
 import { FATIGUE_RULES } from '../src/services/fatigue.js';
-import { TEXT_SIZES, THEMES } from '../public/shared/prefs.js';
+import { TEXT_SIZES } from '../public/shared/prefs.js';
 import { TOUR_STEPS } from '../public/shared/tour.js';
 import { DESTINATIONS } from '../public/worker/nav.js';
 import { STATUS, describeQueue } from '../public/shared/queue.js';
@@ -93,12 +93,13 @@ test('dynamic keys: every category, role, fatigue rule and API error code has a 
 
   for (const step of TOUR_STEPS) needed.push(`tour.step.${step.id}.title`, `tour.step.${step.id}.short`, `tour.step.${step.id}.text`);
   for (const destination of DESTINATIONS) needed.push(destination.labelKey);
-  for (const theme of THEMES) needed.push(`theme.${theme}`);
-  needed.push('theme.toLight', 'theme.toDark', 'rest.level.amber', 'rest.level.red');
+  needed.push('rest.level.amber', 'rest.level.red');
   for (const name of ['records', 'disputes', 'reports', 'passport', 'grievances', 'disputesAdmin', 'compliance', 'fatigue', 'risk', 'skills', 'workers']) {
     needed.push(`empty.${name}.title`, `empty.${name}.text`);
   }
   for (const size of TEXT_SIZES) needed.push(`me.size.${size}`);
+  for (const k of ['worker', 'days', 'gross', 'net', 'paid', 'short', 'status']) needed.push(`payroll.col.${k}`);
+  needed.push('payroll.summary.none', 'payroll.summary.one', 'payroll.summary.other');
   // The offline outbox: every status, kind, check-in method, and every message the banner can show.
   for (const status of Object.values(STATUS)) needed.push(`outbox.status.${status}`);
   for (const method of CHECK_IN_METHODS) needed.push(`outbox.method.${method}`);

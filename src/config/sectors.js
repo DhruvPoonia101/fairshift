@@ -12,7 +12,7 @@ import { DISPUTE, MINUTES_PER_HOUR, PAYROLL, WAGE_RULES_NOTE } from './constants
 
 /** Categories every workplace needs for pay and conduct complaints. */
 export const COMMON_CATEGORIES = Object.freeze([
-  { id: 'pay', icon: 'wallet', kind: 'grievance' },
+  { id: 'pay', icon: 'rupee', kind: 'grievance' },
   { id: 'hours', icon: 'clock', kind: 'grievance' },
   { id: 'behaviour', icon: 'user', kind: 'grievance' },
   { id: 'facilities', icon: 'droplet', kind: 'grievance' },

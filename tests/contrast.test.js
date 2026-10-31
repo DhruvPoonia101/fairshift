@@ -16,21 +16,18 @@ const block = (pattern) => {
   return found[0];
 };
 
-// Each theme's colours are written in one block (and the dark ones twice: see the identity test below).
+// FairShift has one light theme (plus a high-contrast variant that sits on top of it). The colours are written once each.
 const lightBlock = block(/:root\s*{[^}]*}/);
-const darkBlock = block(/html\[data-theme="dark"\]\s*{[^}]*}/);
-const darkFallbackBlock = block(/prefers-color-scheme: dark\)\s*{\s*:root:not\(\[data-theme\]\)\s*{[^}]*}/);
-const highLightBlock = block(/html\[data-contrast="high"\]\s*{[^}]*}/);
-const highDarkBlock = block(/html\[data-contrast="high"\]\[data-theme="dark"\]\s*{[^}]*}/);
+const toneBlock = block(/:root\s*{[^}]*--ic-pay:[^}]*}/);
+const highBlock = block(/html\[data-contrast="high"\]\s*{[^}]*}/);
 
 const light = tokens(lightBlock);
-const dark = { ...light, ...tokens(darkBlock) };
-// High contrast sits on top of whichever theme is showing, and asks for WCAG AAA (7:1) text.
+const tones = tokens(toneBlock);
+const high = { ...light, ...tokens(highBlock) };
+// High contrast asks for WCAG AAA (7:1) text.
 const themes = {
   light: { tokens: light, minimum: 4.5 },
-  dark: { tokens: dark, minimum: 4.5 },
-  'high contrast light': { tokens: { ...light, ...tokens(highLightBlock) }, minimum: 7 },
-  'high contrast dark': { tokens: { ...dark, ...tokens(highLightBlock), ...tokens(highDarkBlock) }, minimum: 7 },
+  'high contrast': { tokens: high, minimum: 7 },
 };
 
 function luminance(hex) {
@@ -77,37 +74,81 @@ for (const [name, { tokens: theme, minimum }] of Object.entries(themes)) {
 }
 
 describe('the palette', () => {
-  test('the brand colours are the ones in the design brief', () => {
-    assert.deepEqual([dark.bg, dark.surface, dark['surface-2'], dark.text, dark.muted, dark.accent], ['#0B0E12', '#12161C', '#181D24', '#F3EEE4', '#A8A398', '#D6B26A']);
-    assert.deepEqual([light.bg, light.surface, light.text, light.accent], ['#FAF7F2', '#FFFFFF', '#14110D', '#8A6A1F']);
-    assert.equal(light.primary, '#D6B26A', 'gold fills with ink text');
-    assert.equal(light['on-primary'], '#14110D');
+  test('warm ivory background, deep ink-navy text, saffron-gold primary, white surfaces', () => {
+    assert.deepEqual([light.bg, light.surface, light.text, light.accent], ['#FAF6EC', '#FFFFFF', '#121B33', '#8F5300']);
+    assert.equal(light.primary, '#F5A623', 'saffron-gold fills with ink text');
+    assert.equal(light['on-primary'], '#121B33');
   });
 
-  test('the dark theme is defined once for the device preference and once for the explicit choice, and they are identical', () => {
-    assert.deepEqual(tokens(darkFallbackBlock), tokens(darkBlock));
-    assert.deepEqual(darkFallbackBlock.replace(/\s+/g, ' ').match(/--[\w-]+:[^;]+;/g), darkBlock.replace(/\s+/g, ' ').match(/--[\w-]+:[^;]+;/g), 'including shadows');
+  test('the primary is saffron-gold, never green (and neither is the accent)', () => {
+    const hue = (hex) => {
+      const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+      const max = Math.max(r, g, b);
+      const d = max - Math.min(r, g, b);
+      const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      return (h * 60 + 360) % 360;
+    };
+    for (const name of ['primary', 'accent']) assert.ok(hue(light[name]) >= 25 && hue(light[name]) <= 48, `${name} hue ${hue(light[name]).toFixed(0)} is saffron / gold`);
   });
 
-  test('every theme defines every colour token, so nothing falls back to another theme by accident', () => {
+  test('the colour tokens are written once: there is no dark block, no dark fallback and no dark high-contrast block', () => {
+    assert.ok(!/prefers-color-scheme/.test(css));
+    assert.ok(!/data-theme/.test(css));
+    assert.ok(!/color-scheme:\s*dark/.test(css));
+    assert.match(css, /color-scheme: light/);
+  });
+
+  test('high contrast defines every colour token, so nothing falls back by accident', () => {
     const names = Object.keys(light);
     assert.ok(names.length >= 18);
-    for (const [label, theme] of [['dark', tokens(darkBlock)], ['high contrast light', tokens(highLightBlock)], ['high contrast dark', tokens(highDarkBlock)]]) {
-      assert.deepEqual(names.filter((n) => !(n in theme) && n !== 'primary' && !(label === 'dark' && n === 'primary')), [], label);
-    }
+    assert.deepEqual(names.filter((n) => !(n in tokens(highBlock))), []);
   });
 
   test('status colours stay distinct from each other (they are never the only cue, but they should still differ)', () => {
-    for (const theme of [light, dark]) {
-      const status = [theme.ok, theme.warn, theme.danger, theme.info];
-      assert.equal(new Set(status).size, 4);
-      const softs = [theme['ok-soft'], theme['warn-soft'], theme['danger-soft'], theme['info-soft']];
-      assert.equal(new Set(softs).size, 4);
-    }
+    const status = [light.ok, light.warn, light.danger, light.info];
+    assert.equal(new Set(status).size, 4);
+    const softs = [light['ok-soft'], light['warn-soft'], light['danger-soft'], light['info-soft']];
+    assert.equal(new Set(softs).size, 4);
   });
 });
 
-describe('no blue anywhere', () => {
+describe('the icon tones', () => {
+  const NAMES = ['pay', 'report', 'speak', 'skills', 'checkin', 'rest', 'lang', 'payroll'];
+  const tint = (hex, amount) => '#' + [1, 3, 5].map((i) => Math.round(Number.parseInt(hex.slice(i, i + 2), 16) * amount + 255 * (1 - amount)).toString(16).padStart(2, '0')).join('').toUpperCase();
+  const close = (a, b) => [1, 3, 5].every((i) => Math.abs(Number.parseInt(a.slice(i, i + 2), 16) - Number.parseInt(b.slice(i, i + 2), 16)) <= 2);
+
+  test('there are eight tones, each a strong colour and a soft tile colour', () => {
+    for (const name of NAMES) assert.ok(tones[`ic-${name}`] && tones[`ic-${name}-soft`], name);
+    assert.equal(new Set(NAMES.map((n) => tones[`ic-${n}`])).size, 8, 'all different');
+    assert.deepEqual(Object.keys(tones).filter((k) => !NAMES.some((n) => k === `ic-${n}` || k === `ic-${n}-soft`)), []);
+  });
+
+  test('each soft tile is a 12% tint of its strong colour', () => {
+    for (const name of NAMES) assert.ok(close(tones[`ic-${name}-soft`], tint(tones[`ic-${name}`], 0.12)), `${name}: ${tones[`ic-${name}-soft`]} vs ${tint(tones[`ic-${name}`], 0.12)}`);
+  });
+
+  test('every icon / text colour reaches 4.5:1 on its own tile and on the white and ivory surfaces it sits on', () => {
+    for (const name of NAMES) {
+      const strong = tones[`ic-${name}`];
+      for (const [label, background] of [['its tile', tones[`ic-${name}-soft`]], ['surface', light.surface], ['bg', light.bg], ['surface-2', light['surface-2']]]) {
+        const value = ratio(strong, background);
+        assert.ok(value >= 4.5, `${name} on ${label} is ${value.toFixed(2)}:1`);
+      }
+    }
+  });
+
+  test('high contrast turns every tone into plain black on white (7:1 or better), so nothing relies on colour', () => {
+    const hc = tokens(highBlock);
+    for (const name of NAMES) assert.ok(ratio(hc[`ic-${name}`], hc[`ic-${name}-soft`]) >= 7, name);
+  });
+
+  test('the tones are wired up: a data-tone attribute sets the colour and the tile, and the CSS has a rule for each', () => {
+    for (const name of NAMES) assert.match(css, new RegExp(`\\[data-tone="${name}"\\] \\{ --tone: var\\(--ic-${name}\\); --tone-soft: var\\(--ic-${name}-soft\\); \\}`), name);
+    assert.match(css, /\.tile-icon \{[^}]*background: var\(--tone-soft/);
+  });
+});
+
+describe('colours in files', () => {
   const walk = (dir) =>
     readdirSync(dir).flatMap((name) => {
       const full = path.join(dir, name);
@@ -127,33 +168,40 @@ describe('no blue anywhere', () => {
     return { h, s: d / (1 - Math.abs(2 * l - 1)), l };
   }
 
-  // The brief's ink tones (#0B0E12 and friends) are near-blacks with a faint cool tint: below 22% lightness they read
-  // as black, not as a colour, so only lighter colours count as blue.
-  const isBlue = ({ h, s, l }) => h >= 190 && h <= 270 && s > 0.12 && l >= 0.22;
+  // The ink-navy text and the slate greys are blue-ish but not blue colours: only a saturated, light-enough blue counts.
+  const isVividBlue = ({ h, s, l }) => h >= 190 && h <= 255 && s > 0.35 && l >= 0.22;
+  const ALLOWED_BLUES = new Set(['ic-lang', 'ic-lang-soft', 'ic-skills', 'ic-skills-soft'].map((k) => tones[k]));
 
-  test('no colour in any style, page, icon or script is blue (hue 190 to 270 degrees, saturated, and light enough to read as a colour)', () => {
+  test('the only vivid blues (hue 190 to 255) are the sky-blue (language) and indigo (skills) icon tones; violet is a purple', () => {
+    assert.equal(ALLOWED_BLUES.size, 4);
     const blues = [];
     for (const file of files) {
       const text = readFileSync(file, 'utf8');
       for (const match of text.matchAll(/#([0-9a-fA-F]{6})\b/g)) {
-        if (isBlue(hue(`#${match[1]}`))) blues.push(`${path.relative(publicDir, file)}: #${match[1]}`);
+        const hex = `#${match[1].toUpperCase()}`;
+        if (isVividBlue(hue(hex)) && !ALLOWED_BLUES.has(hex)) blues.push(`${path.relative(publicDir, file)}: ${hex}`);
       }
       for (const match of text.matchAll(/#([0-9a-fA-F]{3})\b(?![0-9a-fA-F])/g)) {
         const [r, g, b] = [...match[1]].map((c) => c + c);
-        if (isBlue(hue(`#${r}${g}${b}`))) blues.push(`${path.relative(publicDir, file)}: #${match[1]}`);
+        if (isVividBlue(hue(`#${r}${g}${b}`))) blues.push(`${path.relative(publicDir, file)}: #${match[1]}`);
       }
-      if (/\b(blue|navy|royalblue|dodgerblue|cornflowerblue|steelblue|skyblue|azure|indigo)\b/i.test(text.replace(/\/\*[\s\S]*?\*\//g, '')) && /\.(css|html|svg)$/.test(file)) blues.push(`${path.relative(publicDir, file)}: a blue colour name`);
+      if (/\b(blue|royalblue|dodgerblue|cornflowerblue|steelblue|skyblue|azure)\b/i.test(text.replace(/\/\*[\s\S]*?\*\//g, '')) && /\.(css|html|svg)$/.test(file)) blues.push(`${path.relative(publicDir, file)}: a blue colour name`);
     }
     assert.deepEqual(blues, []);
   });
 
-  test('the detector itself works: it flags the old blue and clear blues, and lets the ink tones and golds through', () => {
-    for (const blue of ['#0B5CAD', '#7BBCF5', '#3366FF', '#0033A0', '#8EC5FF']) assert.ok(isBlue(hue(blue)), blue);
-    for (const fine of ['#0B0E12', '#12161C', '#181D24', '#262C35', '#D6B26A', '#8A6A1F', '#F3EEE4', '#7C8088', '#1D6A3A']) assert.ok(!isBlue(hue(fine)), fine);
+  test('the detector itself works: it flags clear blues and lets the ink, slate, gold and green tones through', () => {
+    for (const blue of ['#0B5CAD', '#7BBCF5', '#3366FF', '#0033A0', '#8EC5FF']) assert.ok(isVividBlue(hue(blue)), blue);
+    for (const fine of ['#121B33', '#4F5669', '#FAF6EC', '#F5A623', '#8F5300', '#857D6C', '#1D6A3A', '#0F7749']) assert.ok(!isVividBlue(hue(fine)), fine);
+    assert.ok(!isVividBlue(hue('#7A3FC4')), 'the violet tone is purple, not blue');
   });
 
-  test('the old blue accent is gone from the pages, the manifest and the theme-colour tags', () => {
-    for (const file of files) assert.ok(!/0b5cad|0033a0|8ec5ff|7bbcf5/i.test(readFileSync(file, 'utf8')), file);
+  test('the old blue accent and the old dark ink colours are gone from the pages, the manifest and the theme-colour tags', () => {
+    for (const file of files) {
+      const text = readFileSync(file, 'utf8');
+      assert.ok(!/0b5cad|0033a0|8ec5ff|7bbcf5/i.test(text), file);
+      if (/\.(css|html|webmanifest)$/.test(file)) assert.ok(!/#0B0E12|#12161C|#181D24/i.test(text), `${file}: a dark-theme ink colour`);
+    }
   });
 });
 
@@ -161,7 +209,7 @@ test('base styles honour reduced motion, focus-visible and a 48px minimum target
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /\.btn\s*{[^}]*min-height: 3rem/);
-  assert.match(css, /prefers-color-scheme: dark/);
+  assert.doesNotMatch(css, /prefers-color-scheme/);
   assert.match(css, /\.icon-btn\s*{[^}]*min-width: 3rem; min-height: 3rem/);
   assert.match(css, /\.sidenav a\s*{[^}]*min-height: 3rem/);
   assert.match(css, /\.tabbar a\s*{[^}]*min-height: (?:[3-9](?:\.\d+)?)rem/);

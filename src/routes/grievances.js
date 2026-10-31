@@ -19,6 +19,8 @@ const createSchema = {
   capturedAt: v.int({ min: 0, max: MAX_EPOCH_MS, optional: true }),
   // Only for anonymous reports: a code made on the phone (see services/grievance.js isValidClientCode).
   trackingCode: v.string({ min: 1, max: 32, optional: true }),
+  // Optional picture, already shrunk to a JPEG on the phone. Checked by its bytes and capped at 200 KB (lib/image.js).
+  photo: v.jpeg({ optional: true }),
 };
 
 const anonymousSchema = {
@@ -26,6 +28,7 @@ const anonymousSchema = {
   text: createSchema.text,
   capturedAt: createSchema.capturedAt,
   trackingCode: v.string({ min: 1, max: 32 }),
+  photo: createSchema.photo,
 };
 
 /** @param {{ store: object, services: object, limiters: { report: Function } }} deps */
@@ -76,6 +79,12 @@ export function grievanceRoutes({ store, services, anonTokens, clock, limiters }
 
   router.get('/admin/grievances', requireAdmin, async (req, res) => {
     res.json({ items: await grievance.listForOrg(req.user.orgId) });
+  });
+
+  // The picture of one report, for the employer's own organisation only. Never cached, never sniffed, never in a list.
+  router.get('/admin/grievances/:id/photo', requireAdmin, validateParams({ id: v.id() }), async (req, res) => {
+    const bytes = await grievance.photoFor(req.user.orgId, req.params.id);
+    res.set({ 'Content-Type': 'image/jpeg', 'Content-Disposition': 'inline', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' }).send(bytes);
   });
 
   router.patch(

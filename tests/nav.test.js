@@ -93,11 +93,11 @@ describe('page shells', () => {
     passport: read('public/passport/index.html'),
   };
 
-  test('every page has the fixed top bar with the logo and wordmark, the theme toggle and the language selector', () => {
+  test('every page has the fixed top bar with the logo and wordmark and the language selector (and no theme toggle)', () => {
     for (const [name, html] of Object.entries(pages)) {
       assert.match(html, /<header class="topbar/, name);
       assert.match(html, /<img src="\/logo\.svg" alt="" width="32" height="32"><span class="brand-name">FairShift<\/span>/, name);
-      assert.match(html, /id="theme-toggle"/, name);
+      assert.doesNotMatch(html, /id="theme-toggle"/, name);
       assert.match(html, /id="lang"/, name);
       assert.match(html, /<link rel="icon" href="\/icon\.svg" type="image\/svg\+xml">/, name);
     }
@@ -113,12 +113,11 @@ describe('page shells', () => {
     assert.doesNotMatch(pages.admin.match(/<button id="logout"[^>]*>/)[0], /no-phone/);
   });
 
-  test('the theme-colour tags follow the theme and the manifest uses the ink colour', () => {
+  test('the theme-colour tag is the light ivory background and so is the manifest', () => {
     for (const html of [pages.worker, pages.admin, pages.landing, pages.passport]) {
-      assert.match(html, /<meta name="theme-color" content="#FAF7F2" media="\(prefers-color-scheme: light\)">/);
-      assert.match(html, /<meta name="theme-color" content="#0B0E12" media="\(prefers-color-scheme: dark\)">/);
+      assert.match(html, /<meta name="theme-color" content="#FAF6EC">/);
     }
-    assert.equal(JSON.parse(read('public/manifest.webmanifest')).theme_color, '#0B0E12');
+    assert.equal(JSON.parse(read('public/manifest.webmanifest')).theme_color, '#FAF6EC');
   });
 
   test('the admin sections are the nine it always had', () => {

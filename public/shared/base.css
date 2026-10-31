@@ -1,7 +1,7 @@
 /*
- * FairShift design system. Calm, premium, trustworthy: layered ivory / ink surfaces, hairline borders,
- * soft shadows, champagne gold as the only accent. No blue. Every colour is a token, defined once below
- * (light, dark, and the two high-contrast variants); tests/contrast.test.js checks every pair against WCAG.
+ * FairShift design system. One light theme: warm ivory, deep ink-navy text, saffron-gold as the primary accent,
+ * white surfaces with soft layered shadows. Every colour is a token, defined once below (the light theme and the
+ * high-contrast variant); tests/contrast.test.js checks every pair against WCAG. Feature icons get one tinted tone each.
  * Fonts are self-hosted (public/fonts): Fraunces for display headings, Inter for the interface. Hindi and
  * Tamil use the system font stack. No external requests.
  */
@@ -16,20 +16,20 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* ---- Colour tokens: light (the default) -------------------------------------------------------------------- */
+/* ---- Colour tokens: the one (light) theme ------------------------------------------------------------------ */
 :root {
-  --bg: #FAF7F2;
+  --bg: #FAF6EC;
   --surface: #FFFFFF;
-  --surface-2: #F8F4EC;
-  --text: #14110D;
-  --muted: #5C5546;
-  --accent: #8A6A1F;
-  --accent-soft: #FAF4E4;
-  --primary: #D6B26A;
-  --on-primary: #14110D;
-  --line: #E7E0D3;
+  --surface-2: #F6F0E2;
+  --text: #121B33;
+  --muted: #4F5669;
+  --accent: #8F5300;
+  --accent-soft: #FFF2D9;
+  --primary: #F5A623;
+  --on-primary: #121B33;
+  --line: #E8E0D0;
   --border: #857D6C;
-  --focus: #8A6A1F;
+  --focus: #8F5300;
   --ok: #1D6A3A;
   --ok-soft: #E4F2E8;
   --warn: #8A4A00;
@@ -38,68 +38,38 @@
   --danger-soft: #FBE3E1;
   --info: #4B473F;
   --info-soft: #ECE7DC;
-  --shadow-1: 0 1px 2px rgb(20 17 13 / 6%), 0 1px 1px rgb(20 17 13 / 4%);
-  --shadow-2: 0 8px 24px rgb(20 17 13 / 8%), 0 2px 6px rgb(20 17 13 / 5%);
-  --shadow-3: 0 24px 60px rgb(20 17 13 / 20%), 0 4px 12px rgb(20 17 13 / 8%);
+  --shadow-1: 0 1px 2px rgb(18 27 51 / 6%), 0 1px 1px rgb(18 27 51 / 4%);
+  --shadow-2: 0 8px 24px rgb(18 27 51 / 8%), 0 2px 6px rgb(18 27 51 / 5%);
+  --shadow-3: 0 24px 60px rgb(18 27 51 / 20%), 0 4px 12px rgb(18 27 51 / 8%);
   color-scheme: light;
 }
 
-/* ---- Dark: ink background, ivory text, champagne gold. The block is written twice (device preference with
-   no saved choice, and the explicit data-theme) and tests/contrast.test.js checks both are identical. ------- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --bg: #0B0E12;
-    --surface: #12161C;
-    --surface-2: #181D24;
-    --text: #F3EEE4;
-    --muted: #A8A398;
-    --accent: #D6B26A;
-    --accent-soft: #241D0F;
-    --primary: #D6B26A;
-    --on-primary: #0B0E12;
-    --line: #262C35;
-    --border: #7C8088;
-    --focus: #D6B26A;
-    --ok: #6ED08C;
-    --ok-soft: #0E2418;
-    --warn: #F5A64C;
-    --warn-soft: #2B1B07;
-    --danger: #FF8F86;
-    --danger-soft: #2E1213;
-    --info: #BDB8AC;
-    --info-soft: #20242B;
-    --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow-2: 0 8px 24px rgb(0 0 0 / 40%), 0 2px 6px rgb(0 0 0 / 30%);
-    --shadow-3: 0 24px 60px rgb(0 0 0 / 60%), 0 4px 12px rgb(0 0 0 / 40%);
-    color-scheme: dark;
-  }
+/* ---- Icon tones: each feature has one colour. The tile is a 12% tint of the strong colour, the icon and any label
+   use the strong colour, and every pair reaches 4.5:1 (tests/contrast.test.js). pay = saffron, report = coral red,
+   speak up = teal, skills / passport = indigo, check-in = emerald, rest = violet, language = sky blue, payroll = amber. */
+:root {
+  --ic-pay: #A94E08;       --ic-pay-soft: #F5EAE1;
+  --ic-report: #BC3921;    --ic-report-soft: #F7E7E4;
+  --ic-speak: #0B7570;     --ic-speak-soft: #E2EEEE;
+  --ic-skills: #4343B8;    --ic-skills-soft: #E8E8F6;
+  --ic-checkin: #0F7749;   --ic-checkin-soft: #E2EFE9;
+  --ic-rest: #7A3FC4;      --ic-rest-soft: #EFE8F8;
+  --ic-lang: #0B6EA8;      --ic-lang-soft: #E2EEF5;
+  --ic-payroll: #836500;   --ic-payroll-soft: #F0EDE0;
 }
-html[data-theme="dark"] {
-  --bg: #0B0E12;
-  --surface: #12161C;
-  --surface-2: #181D24;
-  --text: #F3EEE4;
-  --muted: #A8A398;
-  --accent: #D6B26A;
-  --accent-soft: #241D0F;
-  --primary: #D6B26A;
-  --on-primary: #0B0E12;
-  --line: #262C35;
-  --border: #7C8088;
-  --focus: #D6B26A;
-  --ok: #6ED08C;
-  --ok-soft: #0E2418;
-  --warn: #F5A64C;
-  --warn-soft: #2B1B07;
-  --danger: #FF8F86;
-  --danger-soft: #2E1213;
-  --info: #BDB8AC;
-  --info-soft: #20242B;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-2: 0 8px 24px rgb(0 0 0 / 40%), 0 2px 6px rgb(0 0 0 / 30%);
-  --shadow-3: 0 24px 60px rgb(0 0 0 / 60%), 0 4px 12px rgb(0 0 0 / 40%);
-  color-scheme: dark;
-}
+[data-tone="pay"] { --tone: var(--ic-pay); --tone-soft: var(--ic-pay-soft); }
+[data-tone="report"] { --tone: var(--ic-report); --tone-soft: var(--ic-report-soft); }
+[data-tone="speak"] { --tone: var(--ic-speak); --tone-soft: var(--ic-speak-soft); }
+[data-tone="skills"] { --tone: var(--ic-skills); --tone-soft: var(--ic-skills-soft); }
+[data-tone="checkin"] { --tone: var(--ic-checkin); --tone-soft: var(--ic-checkin-soft); }
+[data-tone="rest"] { --tone: var(--ic-rest); --tone-soft: var(--ic-rest-soft); }
+[data-tone="lang"] { --tone: var(--ic-lang); --tone-soft: var(--ic-lang-soft); }
+[data-tone="payroll"] { --tone: var(--ic-payroll); --tone-soft: var(--ic-payroll-soft); }
+/* A tinted rounded tile with the icon in the strong colour. Works on any element that has data-tone. */
+.tile-icon { display: inline-grid; place-items: center; flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; background: var(--tone-soft, var(--accent-soft)); color: var(--tone, var(--accent)); }
+.tile-icon-lg { width: 3rem; height: 3rem; border-radius: 0.875rem; }
+/* Navigation icons carry their own tint (the svg is the tile), so no extra markup is needed. */
+[data-tone] > svg.icon.tinted { box-sizing: content-box; width: 1.25rem; height: 1.25rem; padding: 0.375rem; border-radius: 0.625rem; background: var(--tone-soft); color: var(--tone); }
 
 /* ---- Non-colour tokens: spacing, type, radius, motion, layout ---------------------------------------------- */
 :root {
@@ -247,7 +217,7 @@ tbody tr:hover { background: var(--surface-2); }
 
 /* ---- Dialogs, toasts, banners ------------------------------------------------------------------------------ */
 dialog { max-width: min(34rem, 94vw); width: 100%; padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow-3); }
-dialog::backdrop { background: rgb(11 14 18 / 60%); backdrop-filter: blur(2px); }
+dialog::backdrop { background: rgb(18 27 51 / 50%); backdrop-filter: blur(2px); }
 dialog[open] { animation: rise var(--dur-2) var(--ease); }
 dialog video { width: 100%; border-radius: var(--radius-sm); background: #000; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
@@ -306,7 +276,7 @@ dialog video { width: 100%; border-radius: var(--radius-sm); background: #000; }
 .sidenav a[aria-current="page"] svg.icon { stroke-width: 2.6; }
 .sidenav a[aria-current="page"] span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.3em; }
 
-.tabbar { position: fixed; inset: auto 0 0 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgb(20 17 13 / 6%); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar { position: fixed; inset: auto 0 0 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgb(18 27 51 / 6%); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar ul { display: grid; grid-template-columns: repeat(var(--tabs, 5), minmax(0, 1fr)); max-width: 44rem; margin: 0 auto; }
 .tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; min-height: 4.25rem; padding: var(--space-1); color: var(--muted); text-decoration: none; font-size: 0.8125rem; font-weight: 600; border-top: 3px solid transparent; }
 .tabbar svg.icon { width: 1.625rem; height: 1.625rem; }
@@ -341,7 +311,7 @@ html[data-text-size="large"] .brand-name, html[data-text-size="xlarge"] .brand-n
 @media (min-width: 56.25rem) { html[data-text-size] .brand-name { display: inline; } }
 
 /* High contrast: pure black and white, solid borders, underlined links, a thicker focus ring (7:1 text).
-   The dark variant is more specific, so it wins when the dark theme is showing. */
+   Icon tones become plain black on white too, so nothing relies on colour. */
 html[data-contrast="high"] {
   --bg: #FFFFFF;
   --surface: #FFFFFF;
@@ -350,7 +320,7 @@ html[data-contrast="high"] {
   --muted: #1A1A1A;
   --accent: #5A4208;
   --accent-soft: #F4EBD2;
-  --primary: #D6B26A;
+  --primary: #F5A623;
   --on-primary: #000000;
   --line: #000000;
   --border: #000000;
@@ -365,28 +335,22 @@ html[data-contrast="high"] {
   --info-soft: #E8E8E8;
   --shadow-1: none;
   --shadow-2: none;
-}
-html[data-contrast="high"][data-theme="dark"] {
-  --bg: #000000;
-  --surface: #000000;
-  --surface-2: #0F0F0F;
-  --text: #FFFFFF;
-  --muted: #E8E8E8;
-  --accent: #F0D08E;
-  --accent-soft: #1A1405;
-  --primary: #F0D08E;
-  --on-primary: #000000;
-  --line: #FFFFFF;
-  --border: #FFFFFF;
-  --focus: #F0D08E;
-  --ok: #8DFFAD;
-  --ok-soft: #001F0A;
-  --warn: #FFD27F;
-  --warn-soft: #2A1900;
-  --danger: #FF9A92;
-  --danger-soft: #2A0000;
-  --info: #E0E0E0;
-  --info-soft: #1A1A1A;
+  --ic-pay: #000000;
+  --ic-pay-soft: #FFFFFF;
+  --ic-report: #000000;
+  --ic-report-soft: #FFFFFF;
+  --ic-speak: #000000;
+  --ic-speak-soft: #FFFFFF;
+  --ic-skills: #000000;
+  --ic-skills-soft: #FFFFFF;
+  --ic-checkin: #000000;
+  --ic-checkin-soft: #FFFFFF;
+  --ic-rest: #000000;
+  --ic-rest-soft: #FFFFFF;
+  --ic-lang: #000000;
+  --ic-lang-soft: #FFFFFF;
+  --ic-payroll: #000000;
+  --ic-payroll-soft: #FFFFFF;
 }
 html[data-contrast="high"] a { text-decoration: underline; }
 html[data-contrast="high"] :focus-visible { outline-width: 4px; }
@@ -399,6 +363,15 @@ html[data-contrast="high"] .card, html[data-contrast="high"] .banner, html[data-
 .skel-line { height: 1rem; width: 80%; }
 .skel-row { height: 3rem; }
 .skel-card { height: 7rem; border-radius: var(--radius-lg); }
+
+/* ---- Report photo: the worker's preview, the employer's thumbnail and the enlarged view -------------------- */
+.photo-preview { display: flex; align-items: center; gap: var(--space-3); }
+.photo-preview[hidden] { display: none; }
+.photo-preview img { width: 6rem; height: 6rem; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2); }
+.photo-thumb { display: block; margin-top: 0.5rem; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); cursor: zoom-in; line-height: 0; }
+.photo-thumb:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.photo-thumb-img { width: 4rem; height: 4rem; object-fit: cover; border-radius: calc(var(--radius-sm) - 1px); }
+.photo-large { display: block; width: 100%; max-height: 70vh; object-fit: contain; border-radius: var(--radius-sm); background: var(--surface-2); }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 .state { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-4); text-align: center; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-lg); }

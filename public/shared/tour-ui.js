@@ -122,7 +122,7 @@ function buildPanel() {
           })
         : null,
       !isOnStep(location, step) ? iconButton('pin', t('tour.goToStep'), { onclick: () => goTo(step) }) : null,
-      step.id === 'result' ? h('a', { class: 'btn', href: '/worker/#pay' }, icon('wallet'), t('tour.showPay')) : null,
+      step.id === 'result' ? h('a', { class: 'btn', href: '/worker/#pay' }, icon('rupee'), t('tour.showPay')) : null,
       view.isFirst ? null : iconButton('arrowLeft', t('tour.back'), { onclick: () => { tour.back(); goTo(TOUR_STEPS[tour.view().step]); render(); } }),
       iconButton('check', t(view.isLast ? 'tour.finish' : 'tour.next'), {
         class: view.isLast ? 'btn btn-primary' : 'btn',

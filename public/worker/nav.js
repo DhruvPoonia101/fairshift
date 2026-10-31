@@ -7,7 +7,7 @@
  */
 export const TABS = Object.freeze([
   { id: 'home', icon: 'home', labelKey: 'tab.home' },
-  { id: 'pay', icon: 'wallet', labelKey: 'tab.pay' },
+  { id: 'pay', icon: 'rupee', labelKey: 'tab.pay' },
   { id: 'report', icon: 'alert', labelKey: 'tab.report' },
   { id: 'records', icon: 'calendar', labelKey: 'tab.disputes' },
   { id: 'passport', icon: 'badge', labelKey: 'tab.passport' },

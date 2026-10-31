@@ -26,7 +26,7 @@ main > .stack { gap: var(--space-5); }
 .quick-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); min-height: 5.75rem; padding: var(--space-3) var(--space-2); font: inherit; font-size: 0.9375rem; font-weight: 600; text-align: center; text-decoration: none; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-1); cursor: pointer; transition: box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease); }
 .quick-tile:hover { box-shadow: var(--shadow-2); border-color: var(--accent); transform: translateY(-1px); }
 .quick-tile:active { transform: translateY(0); }
-.quick-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent); }
+.quick-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; background: var(--tone-soft, var(--accent-soft)); color: var(--tone, var(--accent)); }
 
 .alert-card { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--line); border-inline-start: 4px solid currentColor; border-radius: var(--radius); }
 .alert-card.alert-red { background: var(--danger-soft); color: var(--danger); }

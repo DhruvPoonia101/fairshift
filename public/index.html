@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0B0E12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FAF6EC">
   <meta name="description" content="FairShift: clear pay, safe reporting and fair shifts for workers and employers.">
   <title data-i18n="landing.title">FairShift - Fair pay, safe work</title>
   <script src="/shared/prefs-boot.js"></script>
@@ -13,6 +12,7 @@
   <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/shared/base.css">
   <link rel="stylesheet" href="/landing.css">
+  <link rel="stylesheet" href="/shared/motion.css">
   <link rel="manifest" href="/manifest.webmanifest">
 </head>
 <body>
@@ -21,36 +21,110 @@
     <div class="topbar-inner">
       <a class="brand" href="/" aria-label="FairShift"><img src="/logo.svg" alt="" width="32" height="32"><span class="brand-name">FairShift</span></a>
       <div class="topbar-actions">
-        <button id="theme-toggle" class="icon-btn" type="button"></button>
         <div class="lang" id="lang"></div>
       </div>
     </div>
   </header>
   <main id="main" class="container landing" tabindex="-1">
-    <section class="hero stack" aria-labelledby="hero-title">
-      <p class="eyebrow" data-i18n="landing.eyebrow">Decent work for everyone</p>
-      <h1 id="hero-title" data-i18n="landing.headline">Know your pay. Speak up safely. Work fair hours.</h1>
-      <p class="lead" data-i18n="landing.sub">FairShift helps workers and employers in construction, colleges, hospitals and factories.</p>
-      <div class="choices">
-        <button type="button" class="btn btn-primary btn-lg" id="pick-worker" aria-expanded="false" aria-controls="panel-worker" data-role="worker"><span data-i18n="landing.worker">I am a worker</span></button>
-        <button type="button" class="btn btn-lg" id="pick-admin" aria-expanded="false" aria-controls="panel-admin" data-role="admin"><span data-i18n="landing.employer">I am an employer</span></button>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy stack">
+        <p class="eyebrow" data-i18n="landing.eyebrow">Decent work for everyone</p>
+        <h1 id="hero-title" data-i18n="landing.headline">Know your pay. Speak up safely. Work fair hours.</h1>
+        <ul class="points">
+          <li><span class="tile-icon" data-tone="pay"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4.5h10M7 8.5h10M7 4.5h3.5a4 4 0 0 1 0 8H7M7 12.5l8 7"/></svg></span><span data-i18n="landing.points.pay">See every rupee of your pay, line by line.</span></li>
+          <li><span class="tile-icon" data-tone="speak"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 5.1A9.7 9.7 0 0 1 12 5c5.5 0 9 5.5 9 7a6 6 0 0 1-1.6 2.5M6.6 6.7C4.3 8.2 3 10.6 3 12c0 1.5 3.5 7 9 7a9 9 0 0 0 3.4-.7"/></svg></span><span data-i18n="landing.points.speak">Report problems safely, without your name if you choose.</span></li>
+          <li><span class="tile-icon" data-tone="rest"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg></span><span data-i18n="landing.points.rest">Get warned about too many hours before anyone is hurt.</span></li>
+        </ul>
       </div>
-      <div id="tour-slot" class="row"></div>
-      <p id="need" class="banner" role="status" hidden></p>
-      <section id="panel-worker" class="card stack" hidden aria-labelledby="pick-worker"></section>
-      <section id="panel-admin" class="card stack" hidden aria-labelledby="pick-admin"></section>
+
+      <section class="signin card card-raised" id="signin" aria-labelledby="signin-title">
+        <h2 id="signin-title" data-i18n="landing.signinTitle">Sign in</h2>
+        <div class="seg" id="signin-tabs" role="group" aria-label="Sign in as" data-i18n-attr="aria-label:landing.roleLabel"></div>
+        <div id="signin-panel" class="stack-sm" aria-live="polite"><div class="skel skel-line" aria-hidden="true"></div><div class="skel skel-row" aria-hidden="true"></div></div>
+        <p id="need" class="banner" role="status" hidden></p>
+        <div id="demo" class="stack-sm"></div>
+        <div id="tour-slot" class="row"></div>
+      </section>
+
+      <!-- Decorative 3D scene: CSS 3D plus inline SVG, no images. Hidden from assistive technology. -->
+      <div class="scene" id="scene" aria-hidden="true">
+        <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>
+        <svg class="skyline" viewBox="0 0 640 230" focusable="false">
+          <defs><radialGradient id="scene-glow"><stop offset="0" class="g0"/><stop offset="1" class="g1"/></radialGradient></defs>
+          <ellipse class="glow" cx="470" cy="84" rx="250" ry="150" fill="url(#scene-glow)"/>
+          <g class="drift drift-c"><path class="s-far" d="M-20 222V150H10V128H36V158H58V110H86V170H110V140H140V184H166V114H190V184H220V150H246V182H274V126H304V178H328V140H358V190H378V132H404V172H430V148H456V182H486V120H514V176H542V150H570V190H596V136H620V168H660V222Z"/></g>
+          <g class="drift drift-b">
+            <polygon class="s-mid" points="44,150 125,118 206,150"/>
+            <rect class="s-mid" x="50" y="150" width="150" height="72"/>
+            <path class="s-win" d="M68 160h8v62h-8zM96 160h8v62h-8zM146 160h8v62h-8zM174 160h8v62h-8zM113 192h24v30h-24z"/>
+            <circle class="s-line" cx="125" cy="138" r="7"/><path class="s-line" d="M125 133v5l4 2"/>
+            <rect class="s-mid" x="300" y="112" width="150" height="110"/>
+            <path class="s-win" d="M316 128h14v12h-14zM346 128h14v12h-14zM376 128h14v12h-14zM406 128h14v12h-14zM316 152h14v12h-14zM346 152h14v12h-14zM376 152h14v12h-14zM406 152h14v12h-14zM316 176h14v12h-14zM346 176h14v12h-14zM376 176h14v12h-14zM406 176h14v12h-14zM362 194h26v28h-26z"/>
+            <path class="cross s-cross" d="M368 70h14v10h10v14h-10v10h-14v-10h-10v-14h10z"/>
+            <rect class="s-mid" x="474" y="136" width="44" height="86"/>
+            <path class="s-win" d="M484 148h10v10h-10zM500 148h10v10h-10zM484 172h10v10h-10zM500 172h10v10h-10zM484 196h10v10h-10zM500 196h10v10h-10z"/>
+          </g>
+          <g class="drift drift-a">
+            <path class="s-line" d="M524 222V150H574V222M524 178H574M524 200H574M549 150V222"/>
+            <path class="s-crane s-thin" d="M582 222V66M594 222V66M582 222L594 200L582 178L594 156L582 134L594 112L582 90L594 68"/>
+            <g class="crane-arm">
+              <path class="s-crane" d="M470 62H632M570 62L588 34L606 62M588 34L470 62M588 34L632 62"/>
+              <rect class="s-gold" x="616" y="62" width="14" height="12"/><rect class="s-gold" x="594" y="62" width="12" height="10"/>
+            </g>
+            <path class="s-crane s-thin" d="M500 62V100"/><rect class="s-gold" x="488" y="100" width="24" height="6"/>
+          </g>
+          <rect class="s-ground" y="222" width="640" height="8"/><path class="s-line" d="M0 222H640"/>
+        </svg>
+        <div class="stage">
+          <div class="float">
+            <div class="slips">
+              <div class="slip slip-3"></div>
+              <div class="slip slip-2"></div>
+              <div class="slip slip-1"><b>FairShift</b><span class="amt">&#8377; 20,169.45</span><i class="ln"></i><i class="ln w2"></i><i class="ln w3"></i><i class="ln w2"></i><span class="tag">&#10003;</span></div>
+            </div>
+          </div>
+          <div class="coin">
+            <i></i><i></i><i></i><i></i>
+            <b class="face"><svg viewBox="0 0 24 24"><path d="M7 4.5h10M7 8.5h10M7 4.5h3.5a4 4 0 0 1 0 8H7M7 12.5l8 7"/></svg></b>
+            <b class="face back"><svg viewBox="0 0 24 24"><path d="M7 4.5h10M7 8.5h10M7 4.5h3.5a4 4 0 0 1 0 8H7M7 12.5l8 7"/></svg></b>
+          </div>
+        </div>
+      </div>
+      <!-- /scene -->
     </section>
 
-    <section class="stack" aria-labelledby="ind-title">
+    <section class="stack" aria-labelledby="how-title" data-reveal>
+      <h2 id="how-title" data-i18n="landing.how.title">How it works</h2>
+      <ol class="steps">
+        <li class="card" data-tilt data-shine data-reveal><span class="tile-icon tile-icon-lg" data-tone="checkin"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/><path d="M12 7v5l3 2"/></svg></span><h3 data-i18n="landing.how.1.title">Check in</h3><p class="muted" data-i18n="landing.how.1.text">Scan the QR code at your site or tap "I am at work". It works with no signal too.</p></li>
+        <li class="card" data-tilt data-shine data-reveal><span class="tile-icon tile-icon-lg" data-tone="pay"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4.5h10M7 8.5h10M7 4.5h3.5a4 4 0 0 1 0 8H7M7 12.5l8 7"/></svg></span><h3 data-i18n="landing.how.2.title">See your pay</h3><p class="muted" data-i18n="landing.how.2.text">Your payslip explains hours, overtime and deductions in plain words, and tells you if you were underpaid.</p></li>
+        <li class="card" data-tilt data-shine data-reveal><span class="tile-icon tile-icon-lg" data-tone="speak"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span><h3 data-i18n="landing.how.3.title">Speak up safely</h3><p class="muted" data-i18n="landing.how.3.text">Report a hazard or a complaint with icons, your voice or a photo. You can keep your name out of it.</p></li>
+      </ol>
+    </section>
+
+    <section class="stack" aria-labelledby="ind-title" data-reveal>
       <h2 id="ind-title" data-i18n="landing.industriesTitle">Three industries, one app</h2>
       <div class="grid sectors" id="industries"><div class="skel skel-card" aria-hidden="true"></div><div class="skel skel-card" aria-hidden="true"></div><div class="skel skel-card" aria-hidden="true"></div></div>
       <p class="muted" data-i18n="landing.more">The same app can serve factories too: only the settings change, not the code.</p>
     </section>
 
-    <section class="stack" aria-labelledby="feat-title">
-      <h2 id="feat-title" data-i18n="landing.featuresTitle">What FairShift does</h2>
-      <ul class="grid features" id="features"><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li></ul>
+    <section class="sdg card" aria-labelledby="sdg-title" data-reveal>
+      <span class="sdg-badge" aria-hidden="true">8</span>
+      <div class="stack-sm">
+        <h2 id="sdg-title" data-i18n="landing.sdg.title">Built for UN Sustainable Development Goal 8</h2>
+        <p class="muted" data-i18n="landing.sdg.sub">Decent work and economic growth</p>
+        <ul class="sdg-targets">
+          <li data-i18n="landing.sdg.t85">Target 8.5: equal pay for work of equal value.</li>
+          <li data-i18n="landing.sdg.t88">Target 8.8: safe and secure working environments for all workers.</li>
+        </ul>
+      </div>
     </section>
+
+    <ul class="chips" aria-label="What you can rely on" data-i18n-attr="aria-label:landing.trust.title" data-reveal>
+      <li class="trust" data-tone="checkin"><span class="tile-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 12.6a10 10 0 0 1 3-2M12 20h.01"/></svg></span><span data-i18n="landing.trust.offline">Works offline</span></li>
+      <li class="trust" data-tone="lang"><span class="tile-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg></span><span data-i18n="landing.trust.langs">English / Hindi / Tamil</span></li>
+      <li class="trust" data-tone="speak"><span class="tile-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 5.1A9.7 9.7 0 0 1 12 5c5.5 0 9 5.5 9 7a6 6 0 0 1-1.6 2.5M6.6 6.7C4.3 8.2 3 10.6 3 12c0 1.5 3.5 7 9 7a9 9 0 0 0 3.4-.7"/></svg></span><span data-i18n="landing.trust.anon">Name stays hidden if you choose</span></li>
+    </ul>
   </main>
   <footer class="container muted foot"><p data-i18n="landing.footer">SDG 8: Decent work and economic growth. Prototype for Prompt Wars 2026 x SRM ACM.</p></footer>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>

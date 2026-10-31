@@ -2,7 +2,6 @@ import { ApiError, api } from './api.js';
 import './pwa.js';
 import { applyTranslations, initI18n, mountLanguageSwitcher, setSector } from './i18n.js';
 import { createTour, tourStorage } from './tour.js';
-import { mountThemeToggle } from './chrome.js';
 import { toast } from './dom.js';
 import { icon } from './icons.js';
 import { t } from './i18n.js';
@@ -37,11 +36,9 @@ const sessionCopy = {
   },
 };
 
-/** The top bar's fixed controls: the theme toggle, the language selector and the icons inside static buttons. */
+/** The top bar's fixed controls: the language selector and the icons inside static buttons. */
 export function mountTopbar() {
   mountLanguageSwitcher(document.getElementById('lang'));
-  const toggle = document.getElementById('theme-toggle');
-  if (toggle) mountThemeToggle(toggle);
   for (const slot of document.querySelectorAll('[data-icon]')) slot.replaceChildren(icon(slot.dataset.icon));
 }
 
@@ -95,6 +92,16 @@ export function startRouter(views, defaultView, render) {
     return name in views ? name : defaultView;
   };
   const run = () => render(current());
+  // Count-ups and the score gauge (motion.js) load after the first screen, so they never delay it.
+  const main = document.getElementById('main');
+  import('./motion.js').then((motion) => motion.startMotion(main)).catch(() => {});
+  // Switching tabs or sections: #main is marked for a moment so the new screen slides in (see motion.css).
+  let settle = 0;
+  window.addEventListener('hashchange', () => {
+    main?.classList.add('route-in');
+    clearTimeout(settle);
+    settle = setTimeout(() => main?.classList.remove('route-in'), 1200);
+  });
   window.addEventListener('hashchange', run);
   document.addEventListener('langchange', run);
   run();

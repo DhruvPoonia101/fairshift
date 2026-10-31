@@ -172,6 +172,62 @@ export function createPayrollService({ store, clock }) {
     },
 
     /**
+     * One row per worker for a month: the figures of their payslip (days, hours, gross, PF, ESI, net) and what was
+     * paid with the shortfall and status. It is built with the same arithmetic as `getPayslip`, so the employer's
+     * table and export always match what the worker sees. Sorted by name. Only this org's workers.
+     */
+    async monthlyRows(orgId, month = previousMonth(monthKey(clock.now()))) {
+      const rules = await wageRulesFor(orgId);
+      const { startMs, endMs } = monthBounds(month);
+      const [workers, shifts, advances, payments] = await Promise.all([
+        store.workers.query(orgId),
+        store.shifts.query(orgId, { gte: { field: 'checkIn', value: startMs }, lt: { field: 'checkIn', value: endMs } }),
+        store.advances.query(orgId, { where: { month } }),
+        store.payments.query(orgId, { where: { month } }),
+      ]);
+      const rows = workers
+        .map((worker) => {
+          const own = shifts.filter((s) => s.workerId === worker.id);
+          const slip = computePayslip({
+            worker,
+            shifts: own,
+            advances: advances.filter((a) => a.workerId === worker.id),
+            overtimeMultiplierPct: rules.overtimeMultiplierPct,
+          });
+          const compliance = checkCompliance({
+            slip,
+            rules,
+            payment: payments.find((p) => p.workerId === worker.id) ?? null,
+            isOpenMonth: isOpenMonth(month),
+            pendingShift: own.some((s) => s.checkOut === null),
+          });
+          const line = (...keys) => slip.lines.find((l) => keys.includes(l.key))?.amountPaise ?? 0;
+          return {
+            workerId: worker.id,
+            name: worker.name,
+            role: worker.role,
+            daysWorked: slip.totals.daysWorked,
+            regularMinutes: slip.totals.regularMinutes,
+            overtimeMinutes: slip.totals.overtimeMinutes,
+            grossPaise: slip.grossPaise,
+            pfPaise: line('pf'),
+            esiPaise: line('esi', 'esi_not_applicable'),
+            netPaise: slip.netPaise,
+            paidPaise: compliance.paidPaise,
+            shortfallPaise: compliance.shortfallPaise,
+            status: compliance.status,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const summary = {
+        workers: rows.length,
+        underpaid: rows.filter((r) => r.status === COMPLIANCE_STATUS.UNDERPAID).length,
+        shortfallPaise: rows.reduce((sum, r) => sum + r.shortfallPaise, 0),
+      };
+      return { month, rows, summary };
+    },
+
+    /**
      * Every worker's compliance result for a month (default: last month), flagged ones first (largest shortfall on top).
      * `items` holds only the flagged payslips (underpaid, or not checkable); `summary` counts all.
      */

@@ -27,12 +27,14 @@ export function specFor(kind, payload, { ownerId, random } = {}) {
       return { kind, anonymous: false, ownerId, request: { path: '/disputes', body: clean({ shiftId, category, checkInAt, checkOutAt, siteId, note }) }, display: { labelKey: 'outbox.kind.dispute', categoryKey: `dispute.cat.${category}` } };
     }
     case 'report': {
-      const { category, text, anonymous, source, month } = payload;
+      // `photo` is the small JPEG made on the phone (shared/photo.js), as base64. It rides in the same request body, so a
+      // report that waits offline keeps its picture in the outbox (IndexedDB) and sends it with the same Idempotency-Key.
+      const { category, text, anonymous, source, month, photo } = payload;
       if (anonymous) {
         const trackingCode = generateTrackingCode(random);
-        return { kind, anonymous: true, ownerId: null, trackingCode, request: { path: '/anonymous/grievances', body: { category, text, trackingCode } }, display: { labelKey: 'outbox.kind.reportAnon', categoryKey: `cat.${category}` } };
+        return { kind, anonymous: true, ownerId: null, trackingCode, request: { path: '/anonymous/grievances', body: clean({ category, text, trackingCode, photo }) }, display: { labelKey: 'outbox.kind.reportAnon', categoryKey: `cat.${category}` } };
       }
-      return { kind, anonymous: false, ownerId, request: { path: '/grievances', body: clean({ category, text, anonymous: false, source, month }) }, display: { labelKey: 'outbox.kind.report', categoryKey: `cat.${category}` } };
+      return { kind, anonymous: false, ownerId, request: { path: '/grievances', body: clean({ category, text, anonymous: false, source, month, photo }) }, display: { labelKey: 'outbox.kind.report', categoryKey: `cat.${category}` } };
     }
     case 'feedback': {
       const { subject, rating, text } = payload;

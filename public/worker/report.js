@@ -6,6 +6,7 @@ import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
 import { outbox } from '../shared/outbox.js';
 import { outboxPanel, staleNotice } from '../shared/outbox-ui.js';
+import { photoPicker } from './photo-picker.js';
 import { formatTrackingCode } from '../shared/tracking-code.js';
 import { emptyState } from '../shared/states.js';
 import { dictationButton } from '../shared/voice.js';
@@ -101,7 +102,8 @@ export async function renderReport(session, rerender) {
   const text = h('textarea', { id: 'report-text', maxlength: 1000, required: true });
   const anon = h('input', { type: 'checkbox', id: 'report-anon' });
   const mic = dictationButton(text);
-  const submit = iconButton('check', t('report.send'), { class: 'btn btn-primary btn-lg btn-block', type: 'submit' });
+  const picker = photoPicker();
+  const submit =iconButton('check', t('report.send'), { class: 'btn btn-primary btn-lg btn-block', type: 'submit' });
 
   const form = h(
     'form',
@@ -109,6 +111,7 @@ export async function renderReport(session, rerender) {
     categoryPicker(session.sector.categories),
     field(t('report.describe'), text, mic ? t('report.hintVoice') : t('report.hintType')),
     mic,
+    picker.el,
     h('label', { class: 'check', for: 'report-anon' }, anon, h('span', {}, h('strong', { text: t('report.anon') }), h('span', { class: 'hint', text: ` ${t('report.anonHelp')}` }))),
     submit,
   );
@@ -122,11 +125,12 @@ export async function renderReport(session, rerender) {
       }
       try {
         // An anonymous report gets its tracking code on this phone, at once, so it can be shown even with no signal.
-        const sent = await outbox.submit('report', { category, text: text.value, anonymous: anon.checked });
+        const sent = await outbox.submit('report', { category, text: text.value, anonymous: anon.checked, photo: picker.value() });
         const waiting = sent.status === 'queued';
         if (sent.item.trackingCode) showTrackingCode(formatTrackingCode(sent.item.trackingCode), waiting);
         else toast(t(waiting ? 'outbox.savedToast' : 'report.sent'), waiting ? 'clock' : 'check');
         form.reset();
+        picker.clear();
         rerender();
       } catch (error) {
         showError(error);

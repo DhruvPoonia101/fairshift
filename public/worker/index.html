@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0B0E12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FAF6EC">
   <title data-i18n="worker.title">FairShift - Worker</title>
   <script src="/shared/prefs-boot.js"></script>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -12,6 +11,7 @@
   <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/shared/base.css">
   <link rel="stylesheet" href="/worker/worker.css">
+  <link rel="stylesheet" href="/shared/motion.css">
   <link rel="manifest" href="/manifest.webmanifest">
 </head>
 <body class="has-tabbar">
@@ -21,7 +21,6 @@
       <a class="brand" href="#home" aria-label="FairShift"><img src="/logo.svg" alt="" width="32" height="32"><span class="brand-name">FairShift</span></a>
       <div class="topbar-actions">
         <nav id="toplinks" class="topbar-actions" aria-label="Quick links" data-i18n-attr="aria-label:worker.quick"></nav>
-        <button id="theme-toggle" class="icon-btn" type="button"></button>
         <div class="lang" id="lang"></div>
         <button id="logout" class="icon-btn no-phone" type="button" data-i18n-attr="aria-label:common.logout"><span data-icon="logout"></span><span class="icon-btn-label" data-i18n="common.logout">Log out</span></button>
       </div>

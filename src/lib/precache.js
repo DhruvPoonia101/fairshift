@@ -6,6 +6,8 @@ import path from 'node:path';
 const FOLDERS = ['shared', 'worker', 'i18n', 'fonts'];
 const ROOT_FILES = ['landing.js', 'landing.css', 'logo.svg', 'icon.svg', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 const SHELL_PAGES = ['/', '/worker/'];
+/** Bump when a release must replace every phone's stored copy even if file sizes and dates look the same. */
+export const CACHE_REVISION = 'light-home-1';
 
 /**
  * The list of files the service worker stores at install time, so the worker app opens with no signal.
@@ -15,7 +17,7 @@ const SHELL_PAGES = ['/', '/worker/'];
  */
 export function buildPrecacheList(publicDir) {
   const urls = [...SHELL_PAGES];
-  const fingerprint = createHash('sha256');
+  const fingerprint = createHash('sha256').update(CACHE_REVISION);
   const add = (url, file) => {
     const info = statSync(file);
     urls.push(url);

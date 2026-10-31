@@ -8,7 +8,8 @@ main { padding-top: var(--space-5); padding-bottom: var(--space-7); outline: non
 .card-hero > h2 { font-size: clamp(1.5rem, 4vw, 2rem); }
 .score-card .gauge { width: min(100%, 20rem); }
 .score-top { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
-.score-top .big { font-size: clamp(2.5rem, 8vw, 3.75rem); }
+.score-top .big { font-size: clamp(2.25rem, 6vw, 3rem); }
+.score-top > .stack-sm { flex: 1 1 14rem; min-width: 0; }
 .score-cols { display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
 .score-row { flex-wrap: nowrap; }
 .score-row progress { flex: 1; }
@@ -17,6 +18,7 @@ main { padding-top: var(--space-5); padding-bottom: var(--space-7); outline: non
 .kpi { display: flex; flex-direction: column; gap: 0.25rem; text-decoration: none; color: var(--text); }
 .kpi .row { color: var(--muted); font-weight: 600; flex-wrap: nowrap; }
 .kpi .row svg.icon { color: var(--accent); }
+.kpi .row[data-tone] svg.icon { color: var(--tone); }
 .kpi .big { color: var(--text); }
 
 /* Charts and the gauge: gold and the status colours only. */
@@ -47,6 +49,11 @@ td .chip, td .btn { white-space: nowrap; }
 .cell-wide { min-width: 11rem; }
 .shortfall { font-weight: 700; color: var(--danger); white-space: nowrap; }
 .person { display: flex; flex-direction: column; gap: 0.5rem; }
+.summary-line { font-weight: 600; }
+.seg { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.seg .btn { flex: 1 1 8rem; max-width: 14rem; }
+.seg .btn[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--accent); font-weight: 700; }
+.seg .btn[aria-pressed="true"]::before { content: "✓"; font-weight: 800; }
 
 @media print {
   .sidenav, .tabbar, .topbar, .no-print { display: none !important; }

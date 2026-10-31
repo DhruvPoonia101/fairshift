@@ -29,6 +29,11 @@ import { assertRepository } from './store/repository.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const JSON_BODY_LIMIT = '10kb';
+const JSON_BODY_LIMIT_BYTES = 10 * 1024;
+// The two routes that may carry a report photo: 200 KB of picture is about 267 KB as base64, plus the words.
+// Only the picture may be that big: everything else in those requests still has to fit in 10 KB (see parseJson).
+const PHOTO_BODY_LIMIT = '320kb';
+const PHOTO_ROUTES = new Set(['/grievances', '/anonymous/grievances']);
 
 /**
  * Express app factory. Everything stateful (store, clock) is injected, so tests can run the real
@@ -86,7 +91,18 @@ export function createApp({
     res.set('Cache-Control', 'no-store');
     next();
   });
-  api.use(sameOriginWrites, requireJsonBody, express.json({ limit: JSON_BODY_LIMIT }), sessions.authenticate);
+  const smallJson = express.json({ limit: JSON_BODY_LIMIT });
+  const reportJson = express.json({ limit: PHOTO_BODY_LIMIT });
+  const parseJson = (req, res, next) => {
+    if (!(req.method === 'POST' && PHOTO_ROUTES.has(req.path))) return smallJson(req, res, next);
+    return reportJson(req, res, (error) => {
+      if (error) return next(error);
+      const { photo, ...rest } = req.body ?? {};
+      if (Buffer.byteLength(JSON.stringify(rest)) > JSON_BODY_LIMIT_BYTES) return next(Object.assign(new Error('Request is too large.'), { type: 'entity.too.large' }));
+      return next();
+    });
+  };
+  api.use(sameOriginWrites, requireJsonBody, parseJson, sessions.authenticate);
   const deps = { store, services, sessions, anonTokens, env, limiters, clock };
   api.use(authRoutes(deps));
   api.use(attendanceRoutes(deps));

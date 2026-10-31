@@ -107,8 +107,8 @@ export function renderPayslip(slip, { onDispute } = {}) {
     h(
       'section',
       { class: 'card stack-sm', 'aria-labelledby': 'net-title' },
-      h('h2', { id: 'net-title', class: 'row' }, icon('wallet'), t('payslip.netTitle')),
-      h('p', { class: 'big', text: money(slip.netPaise) }),
+      h('h2', { id: 'net-title', class: 'row' }, icon('rupee'), t('payslip.netTitle')),
+      h('p', { class: 'big', 'data-count': '', text: money(slip.netPaise) }),
       h('p', { class: 'muted', text: t('payslip.totals', { grossPaise: slip.grossPaise, deductionsPaise: slip.deductionsPaise }) }),
       slip.pendingShift ? chip('info', 'clock', t('payslip.pending')) : null,
       h(

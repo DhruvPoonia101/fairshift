@@ -1,0 +1,112 @@
+/*
+ * FairShift motion. Subtle and original. Rules:
+ *  - Only transform and opacity move. Two documented exceptions: the success check is drawn with stroke-dashoffset
+ *    (a 24 px icon), and the gauge sweep is set from motion.js on the SVG dash attribute.
+ *  - Every animation sits inside prefers-reduced-motion: no-preference, and the last block switches all of them off
+ *    under reduce. Hover effects are inside (hover: hover), so a touch screen never gets a stuck hover.
+ *  - Animations use fill-mode "backwards" (never "forwards"), so after they finish the normal styles apply again and
+ *    a hover lift still works on a card that has just faded in.
+ *  - Loaded after the page's own stylesheet; colours, text size and high contrast come from the existing tokens.
+ */
+:root {
+  --m-fast: 150ms;
+  --m-base: 250ms;
+  --m-slow: 450ms;
+  --m-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --m-glow: 0 10px 28px rgb(245 166 35 / 24%);
+}
+html[data-contrast="high"] { --m-glow: none; }
+
+[data-count] { font-variant-numeric: tabular-nums; }
+
+@keyframes m-rise { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
+@keyframes m-page { from { opacity: 0; transform: translateX(0.75rem); } to { opacity: 1; transform: none; } }
+@keyframes m-toast { from { opacity: 0; transform: translateY(1rem) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes m-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes m-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes m-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes m-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+@keyframes m-drift { from { transform: translateX(calc(var(--d, 12px) * -1)); } to { transform: translateX(var(--d, 12px)); } }
+@keyframes m-pulse { 0%, 100% { opacity: 0.65; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes m-glow { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.95; } }
+@keyframes m-float { from { transform: translateY(-5px); } to { transform: translateY(7px); } }
+@keyframes m-coin { from { transform: rotateX(14deg) rotateY(0deg); } to { transform: rotateX(14deg) rotateY(360deg); } }
+@keyframes m-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes m-sway { from { transform: rotate(-1.5deg); } to { transform: rotate(1.5deg); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Landing: the headline block, the sign-in card, the scene and the first cards fade up one after another. */
+  .hero > *, .sectors > * { animation: m-rise var(--m-slow) var(--m-ease) backwards; animation-delay: calc(var(--i, 0) * 80ms); }
+  .hero > :nth-child(2) { --i: 1; }
+  .hero > :nth-child(3) { --i: 2; }
+  .sectors > :nth-child(2) { --i: 1; }
+  .sectors > :nth-child(3) { --i: 2; }
+
+  /* Landing: the scene. Payslips float, the coin spins, the skyline drifts in parallax, the cross pulses, the crane sways,
+     soft shapes drift behind. Only transform and opacity; fx.js pauses all of it while the scene is off screen or the tab is hidden. */
+  .scene .drift { animation: m-drift 60s ease-in-out infinite alternate; }
+  .scene .drift-a { --d: 16px; animation-duration: 80s; }
+  .scene .drift-b { --d: 9px; animation-duration: 55s; animation-direction: alternate-reverse; }
+  .scene .drift-c { --d: 5px; animation-duration: 40s; }
+  .scene .glow { animation: m-glow 9s ease-in-out infinite; }
+  .scene .cross { animation: m-pulse 4.5s ease-in-out infinite; }
+  .scene .crane-arm { animation: m-sway 7s ease-in-out infinite alternate; }
+  .scene .float { animation: m-float 6s ease-in-out infinite alternate; }
+  .scene .coin { animation: m-coin 10s linear infinite; }
+  .scene .orb { animation: m-float 8s ease-in-out infinite alternate; }
+  .scene .o2 { animation-duration: 10s; animation-direction: alternate-reverse; }
+  .scene .o3 { animation-duration: 7s; }
+  .scene[data-paused], .scene[data-paused] * { animation-play-state: paused; }
+  .bob svg { animation: m-bob 3.2s ease-in-out infinite; }
+
+  /* Switching a worker tab or an employer section: the new screen slides in (shell.js marks #main for a moment). */
+  #main.route-in > :not(.skeleton) { animation: m-page var(--m-base) var(--m-ease) backwards; }
+
+  /* Loading: the shimmer is a moving highlight (transform), not a moving background. */
+  .skel { position: relative; overflow: hidden; background: var(--surface-2); animation: none; }
+  .skel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--line), transparent); opacity: 0.7; animation: m-shimmer 1.6s linear infinite; }
+
+  /* Feedback: toasts slide in; a success check draws itself. */
+  .toast { animation: m-toast var(--m-base) var(--m-ease) backwards; }
+  .toast-ok svg.icon path { stroke-dasharray: 24; animation: m-draw var(--m-slow) var(--m-ease) 120ms backwards; }
+
+  /* Bars fill smoothly (the worker's weekly hours, the employer's attendance chart). */
+  .bar rect.fill { transform-box: fill-box; transform-origin: left center; animation: m-fill calc(var(--m-slow) + 250ms) var(--m-ease) backwards; }
+  .chart rect.bar { transform-box: fill-box; transform-origin: center bottom; animation: m-grow calc(var(--m-slow) + 250ms) var(--m-ease) backwards; }
+
+  /* The marker of the current place in the side bar grows in. */
+  .sidenav a[aria-current="page"]::before { animation: m-grow var(--m-base) var(--m-ease) backwards; }
+
+  /* Press: everything pressable shrinks a little and a soft shine passes over buttons. */
+  .btn, .icon-btn, .quick-tile, .sidenav a { transition: transform var(--m-fast) var(--m-ease); }
+  .btn:active, .quick-tile:active { transform: scale(0.98); }
+  .btn { position: relative; overflow: hidden; isolation: isolate; }
+  .btn::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 30%) 50%, transparent 70%); transform: translateX(-120%); }
+  .btn svg.icon, .icon-btn svg.icon, .sidenav a svg.icon { transition: transform var(--m-fast) var(--m-ease); }
+
+  /* Cards: a lift and a gold border glow (an overlay that fades in, so only opacity changes). */
+  .industry, .feature, a.card, .quick-tile, .kpi { position: relative; transition: transform var(--m-base) var(--m-ease); }
+  .industry::after, .feature::after, a.card::after, .quick-tile::after, .kpi::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; border: 1px solid var(--accent); box-shadow: var(--m-glow); opacity: 0; pointer-events: none; transition: opacity var(--m-base) var(--m-ease); }
+
+  /* Navigation: a pill slides in behind the item under the pointer; the bottom bar gets a growing underline. */
+  .sidenav a { isolation: isolate; }
+  .sidenav a:not([aria-current="page"])::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: var(--radius); background: var(--surface-2); opacity: 0; transform: translateX(-0.5rem) scaleX(0.92); transform-origin: left center; transition: opacity var(--m-base) var(--m-ease), transform var(--m-base) var(--m-ease); }
+  .tabbar a { position: relative; }
+  .tabbar a:not([aria-current="page"])::after { content: ""; position: absolute; inset-inline: 22%; bottom: 0.4rem; height: 2px; border-radius: 2px; background: var(--accent); transform: scaleX(0); transition: transform var(--m-base) var(--m-ease); }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .industry:hover, .feature:hover, a.card:hover, .quick-tile:hover, .kpi:hover { transform: translateY(-3px); }
+  .industry:hover::after, .feature:hover::after, a.card:hover::after, .quick-tile:hover::after, .kpi:hover::after { opacity: 1; }
+  .btn:hover::after { transform: translateX(120%); transition: transform 600ms var(--m-ease); }
+  .btn:hover svg.icon, .icon-btn:hover svg.icon, .sidenav a:hover svg.icon { transform: translateX(2px); }
+  .sidenav a:not([aria-current="page"]):hover { background: transparent; }
+  .sidenav a:not([aria-current="page"]):hover::after { opacity: 1; transform: none; }
+  .tabbar a:not([aria-current="page"]):hover::after { transform: scaleX(1); }
+}
+html[data-contrast="high"] .btn::after { display: none; }
+
+/* One switch for everything: no animation and no transition for people who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

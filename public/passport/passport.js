@@ -1,6 +1,5 @@
 import { api } from '../shared/api.js';
 import '../shared/pwa.js';
-import { mountThemeToggle } from '../shared/chrome.js';
 import { expiryChip, verifiedChip } from '../shared/badges.js';
 import { h, iconButton } from '../shared/dom.js';
 import { dayLabel } from '../shared/format.js';
@@ -52,7 +51,6 @@ async function paint(main) {
 
 await initI18n();
 mountLanguageSwitcher(document.getElementById('lang'));
-mountThemeToggle(document.getElementById('theme-toggle'));
 const main = document.getElementById('main');
 document.addEventListener('langchange', () => paint(main));
 await paint(main);

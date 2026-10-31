@@ -3,7 +3,8 @@ const NS = 'http://www.w3.org/2000/svg';
 /** Inline SVG icons (24x24 stroke paths). No images, no icon font, no network. */
 const PATHS = {
   home: ['M3 11l9-8 9 8', 'M5 10v10h14V10', 'M10 20v-6h4v6'],
-  wallet: ['M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z', 'M3 7l2-3h12', 'M16 14h3'],
+  // The rupee sign (a clean stroke glyph, no font needed): two bars, the bowl, and the leg.
+  rupee: ['M7 4.5h10', 'M7 8.5h10', 'M7 4.5h3.5a4 4 0 0 1 0 8H7', 'M7 12.5l8 7'],
   alert: ['M12 3l10 18H2L12 3z', 'M12 10v5', 'M12 18h.01'],
   smile: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M8 14s1.5 2 4 2 4-2 4-2', 'M9 9h.01', 'M15 9h.01'],
   badge: ['M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12z', 'M8.5 14L7 22l5-3 5 3-1.5-8'],
@@ -46,6 +47,8 @@ const PATHS = {
   dash: ['M6 12h12'],
   compass: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M15.5 8.5l-2 5-5 2 2-5 5-2z'],
   arrowLeft: ['M19 12H5', 'M11 6l-6 6 6 6'],
+  camera: ['M4 8h3l2-3h6l2 3h3v11H4z', 'M12 10.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 0 0 0-7z'],
+  download: ['M12 4v11', 'M7 11l5 5 5-5', 'M5 20h14'],
   refresh: ['M20 12a8 8 0 1 1-2.5-5.8', 'M20 4v5h-5'],
   wifiOff: ['M3 3l18 18', 'M8.5 16.5a5 5 0 0 1 7 0', 'M5 12.5a10 10 0 0 1 4-2.3', 'M15 10.2a10 10 0 0 1 4 2.3', 'M2 8.8a15 15 0 0 1 4-2.5', 'M12 20h.01'],
   list: ['M8 6h13', 'M8 12h13', 'M8 18h13', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01'],
@@ -55,6 +58,24 @@ const PATHS = {
   virus: ['M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z', 'M12 2v3', 'M12 19v3', 'M2 12h3', 'M19 12h3', 'M5 5l2 2', 'M17 17l2 2', 'M5 19l2-2', 'M17 7l2-2'],
   monitor: ['M3 4h18v12H3z', 'M8 20h8', 'M12 16v4', 'M6 10h3l1.5-3 2 6 1.5-3h2'],
 };
+
+/**
+ * One colour per feature: pay = saffron, report = coral red, speak up = teal, skills = indigo, check-in = emerald,
+ * rest = violet, language = sky blue, payroll = amber. The colours are tokens in base.css (--ic-*).
+ */
+const TONE_OF = {
+  rupee: 'pay',
+  alert: 'report', helmet: 'report', ladder: 'report', bolt: 'report', flame: 'report', droplet: 'report', flask: 'report', syringe: 'report', virus: 'report', monitor: 'report',
+  eyeOff: 'speak', mic: 'speak', speaker: 'speak', smile: 'speak', users: 'speak',
+  badge: 'skills', scale: 'skills', chart: 'skills', trend: 'skills',
+  qr: 'checkin', clock: 'checkin', pin: 'checkin', calendar: 'checkin', home: 'checkin',
+  moon: 'rest', bed: 'rest',
+  globe: 'lang',
+  download: 'payroll', list: 'payroll',
+};
+
+/** The tone name (a data-tone value) for an icon, or null when it has none (it then keeps the plain accent). */
+export const toneOf = (name) => TONE_OF[name] ?? null;
 
 /** @param {string} name key of PATHS */
 export function icon(name, className = '') {

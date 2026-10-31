@@ -7,18 +7,18 @@ import { errorState, skeleton } from '../shared/states.js';
 const section = (file, name) => () => import(file).then((module) => module[name]);
 
 const SECTIONS = [
-  { id: 'overview', icon: 'chart', load: section('./overview.js', 'renderOverview') },
-  { id: 'attendance', icon: 'qr', load: section('./attendance.js', 'renderAttendance') },
-  { id: 'grievances', icon: 'alert', load: section('./grievances.js', 'renderGrievances') },
-  { id: 'people', icon: 'users', load: section('./people.js', 'renderPeople') },
-  { id: 'feedback', icon: 'smile', load: section('./feedback.js', 'renderFeedback') },
-  { id: 'skills', icon: 'badge', load: section('./skills.js', 'renderSkills') },
-  { id: 'payroll', icon: 'wallet', load: section('./payroll.js', 'renderPayroll') },
-  { id: 'compliance', icon: 'scale', load: section('./compliance.js', 'renderCompliance') },
-  { id: 'disputes', icon: 'calendar', load: section('./disputes.js', 'renderDisputes') },
+  { id: 'overview', icon: 'chart', tone: 'skills', load: section('./overview.js', 'renderOverview') },
+  { id: 'attendance', icon: 'qr', tone: 'checkin', load: section('./attendance.js', 'renderAttendance') },
+  { id: 'grievances', icon: 'alert', tone: 'report', load: section('./grievances.js', 'renderGrievances') },
+  { id: 'people', icon: 'users', tone: 'rest', load: section('./people.js', 'renderPeople') },
+  { id: 'feedback', icon: 'smile', tone: 'speak', load: section('./feedback.js', 'renderFeedback') },
+  { id: 'skills', icon: 'badge', tone: 'skills', load: section('./skills.js', 'renderSkills') },
+  { id: 'payroll', icon: 'rupee', tone: 'payroll', load: section('./payroll.js', 'renderPayroll') },
+  { id: 'compliance', icon: 'scale', tone: 'pay', load: section('./compliance.js', 'renderCompliance') },
+  { id: 'disputes', icon: 'calendar', tone: 'lang', load: section('./disputes.js', 'renderDisputes') },
 ];
 // The same list is the sidebar (900px and up) and a scrollable bottom bar (phones).
-const NAV = SECTIONS.map(({ id, icon }) => ({ id, icon, labelKey: `nav.${id}` }));
+const NAV = SECTIONS.map(({ id, icon, tone }) => ({ id, icon, tone, labelKey: `nav.${id}` }));
 const VIEWS = Object.fromEntries(SECTIONS.map((s) => [s.id, s.load]));
 // Placeholder shapes that roughly match each section, so the page does not jump when it arrives.
 const SKELETONS = { overview: 'cards', grievances: 'table', skills: 'table', compliance: 'table', disputes: 'table' };

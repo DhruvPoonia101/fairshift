@@ -62,6 +62,18 @@ export function dateTimeIst(ms) {
 }
 
 /** Current IST month as 'YYYY-MM', and the one before it. */
+/** The `count` months ending at `current` ("2026-10"), newest first, across year ends: ("2026-01", 3) -> 2026-01, 2025-12, 2025-11. */
+export function monthsBack(current, count) {
+  const [year, month] = current.split('-').map(Number);
+  return Array.from({ length: count }, (_, i) => {
+    const index = year * 12 + (month - 1) - i;
+    return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+  });
+}
+
+/** This month and the ones before it in IST, newest first. */
+export const recentMonths = (count) => monthsBack(istMonths().current, count);
+
 export function istMonths() {
   const now = new Date();
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: IST, year: 'numeric', month: '2-digit' }).formatToParts(now);

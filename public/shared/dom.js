@@ -71,7 +71,7 @@ let dialogCount = 0;
 /** Short message in a polite live region (announced by screen readers). */
 export function toast(message, iconName = 'check') {
   toastRegion ??= document.getElementById('toasts');
-  const el = h('div', { class: 'toast' }, icon(iconName), h('span', { text: message }));
+  const el = h('div', { class: iconName === 'check' ? 'toast toast-ok' : 'toast' }, icon(iconName), h('span', { text: message }));
   toastRegion.append(el);
   setTimeout(() => el.remove(), 5000);
 }

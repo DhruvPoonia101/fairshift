@@ -1,24 +1,17 @@
 import { api } from './shared/api.js';
 import './shared/pwa.js';
-import { mountThemeToggle } from './shared/chrome.js';
 import { busy, field, fill, h, iconButton, showError } from './shared/dom.js';
+import { startFx } from './shared/fx.js';
 import { icon } from './shared/icons.js';
 import { errorState } from './shared/states.js';
 import { applyTranslations, initI18n, mountLanguageSwitcher, t } from './shared/i18n.js';
 
-const FEATURES = [
-  ['wallet', 'pay'],
-  ['alert', 'safe'],
-  ['eyeOff', 'voice'],
-  ['moon', 'rest'],
-  ['badge', 'skills'],
-  ['globe', 'lang'],
-];
 const DESTINATION = { worker: '/worker/', admin: '/admin/' };
+// Each sector card gets its own accent: saffron, indigo, teal (any other sector a new sector adds falls back to emerald).
+const SECTOR_TONE = { construction: 'pay', college: 'skills', hospital: 'speak' };
 
 await initI18n();
 mountLanguageSwitcher(document.getElementById('lang'));
-mountThemeToggle(document.getElementById('theme-toggle'));
 
 // The sectors come from the server's sector config, so a new sector appears here with no code change.
 let configError = null;
@@ -26,9 +19,10 @@ const config = await api('/config').catch((error) => {
   configError = error;
   return { demoMode: false, adminLogin: false, sectors: [] };
 });
-const panels = { worker: document.getElementById('panel-worker'), admin: document.getElementById('panel-admin') };
-const buttons = { worker: document.getElementById('pick-worker'), admin: document.getElementById('pick-admin') };
+const params = new URLSearchParams(location.search);
+let kind = params.get('need') === 'admin' ? 'admin' : 'worker';
 
+// The same demo-login and password-login calls as always: nothing about signing in changed, only where it sits.
 async function demoLogin(role, button) {
   await busy(button, async () => {
     try {
@@ -40,24 +34,10 @@ async function demoLogin(role, button) {
   });
 }
 
-function demoButtons(kind) {
-  return h(
-    'div',
-    { class: 'stack-sm' },
-    ...config.sectors.map(({ id, icon: sectorIcon }) => {
-      const role = `${kind}-${id}`;
-      const label = t(kind === 'worker' ? 'landing.demoWorker' : 'landing.demoAdmin', { sector: t(`sector.${id}`) });
-      const button = iconButton(kind === 'worker' ? 'user' : sectorIcon, label, { class: 'btn btn-block' });
-      button.addEventListener('click', () => demoLogin(role, button));
-      return h('div', { class: 'stack-sm' }, button, h('p', { class: 'hint demo-note', text: t(`landing.demoHint.${id}`) }));
-    }),
-  );
-}
-
 function adminPasswordForm() {
   const org = h('select', { id: 'admin-org' }, ...config.sectors.map(({ id, orgId }) => h('option', { value: orgId, text: t(`sector.${id}`) })));
   const password = h('input', { id: 'admin-pass', type: 'password', autocomplete: 'current-password', required: true, maxlength: 200 });
-  const submit = iconButton('lock', t('landing.signIn'), { class: 'btn btn-primary', type: 'submit' });
+  const submit = iconButton('lock', t('landing.signIn'), { class: 'btn btn-primary magnetic', type: 'submit' });
   const form = h('form', { class: 'stack-sm' }, field(t('landing.org'), org), field(t('landing.password'), password), submit);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -73,31 +53,74 @@ function adminPasswordForm() {
   return form;
 }
 
-function paintPanels() {
+function paintTabs() {
+  const tab = (name, labelKey) => {
+    const button = h('button', { type: 'button', class: 'btn', 'aria-pressed': String(kind === name), text: t(labelKey) });
+    button.addEventListener('click', () => {
+      kind = name;
+      paintSignin();
+    });
+    return button;
+  };
+  fill(document.getElementById('signin-tabs'), tab('worker', 'landing.tabWorker'), tab('admin', 'landing.tabEmployer'));
+}
+
+/** The login part for the chosen tab: the employer password form when it is on, otherwise a short pointer to the demo. */
+function paintPanel() {
+  const panel = document.getElementById('signin-panel');
   if (configError) {
-    for (const panel of Object.values(panels)) panel.replaceChildren(errorState(configError, () => location.reload()));
+    fill(panel, errorState(configError, () => location.reload()));
     return;
   }
-  panels.worker.replaceChildren(
-    h('h2', { text: t('landing.workerTitle') }),
-    config.demoMode ? demoButtons('worker') : h('p', { class: 'muted', text: t('landing.workerOtp') }),
-  );
+  if (kind === 'worker') {
+    fill(panel, h('p', { class: 'muted', text: t(config.demoMode ? 'landing.useDemo' : 'landing.workerOtp') }));
+    return;
+  }
   fill(
-    panels.admin,
-    h('h2', { text: t('landing.employerTitle') }),
-    config.demoMode ? demoButtons('admin') : null,
+    panel,
     config.adminLogin ? adminPasswordForm() : null,
-    !config.demoMode && !config.adminLogin ? h('p', { class: 'muted', text: t('landing.adminOff') }) : null,
+    !config.adminLogin && config.demoMode ? h('p', { class: 'muted', text: t('landing.useDemo') }) : null,
+    !config.adminLogin && !config.demoMode ? h('p', { class: 'muted', text: t('landing.adminOff') }) : null,
   );
 }
 
-function toggle(kind) {
-  for (const [name, button] of Object.entries(buttons)) {
-    const open = name === kind && panels[name].hidden;
-    panels[name].hidden = !open;
-    button.setAttribute('aria-expanded', String(open));
+/** One row per sector with a one-tap worker and a one-tap employer account (demo mode only). The chosen tab's button is the primary one. */
+function paintDemo() {
+  const demo = document.getElementById('demo');
+  if (configError || !config.demoMode) {
+    fill(demo);
+    return;
   }
-  if (!panels[kind].hidden) panels[kind].querySelector('button, input, select')?.focus();
+  const button = (role, sector, iconName, labelKey, primary) => {
+    const go = iconButton(iconName, t(labelKey), { class: primary ? 'btn btn-primary magnetic' : 'btn', 'aria-label': t(role.startsWith('worker') ? 'landing.demoWorker' : 'landing.demoAdmin', { sector: t(`sector.${sector}`) }) });
+    go.addEventListener('click', () => demoLogin(role, go));
+    return go;
+  };
+  fill(
+    demo,
+    h('h3', { text: t('landing.tryDemo') }),
+    h('p', { class: 'hint', text: t('landing.tryDemoHelp') }),
+    h(
+      'ul',
+      { class: 'demo-list' },
+      ...config.sectors.map(({ id, icon: sectorIcon }) =>
+        h(
+          'li',
+          { class: 'demo-row' },
+          h('span', { class: 'tile-icon', 'data-tone': SECTOR_TONE[id] ?? 'checkin' }, icon(sectorIcon)),
+          h('strong', { text: t(`sector.${id}`) }),
+          h('p', { class: 'muted', text: t(`landing.demoHint.${id}`) }),
+          h('div', { class: 'demo-go' }, button(`worker-${id}`, id, 'user', 'landing.tabWorker', kind === 'worker'), button(`admin-${id}`, id, sectorIcon, 'landing.tabEmployer', kind === 'admin')),
+        ),
+      ),
+    ),
+  );
+}
+
+function paintSignin() {
+  paintTabs();
+  paintPanel();
+  paintDemo();
 }
 
 /** The judge tour needs the demo accounts, so its button only appears in demo mode. */
@@ -111,35 +134,32 @@ function paintTourButton() {
   );
 }
 
-function paintContent() {
-  paintPanels();
-  paintTourButton();
-  document.getElementById('features').replaceChildren(
-    ...FEATURES.map(([iconName, key]) =>
-      h('li', { class: 'card feature' }, icon(iconName), h('h3', { text: t(`landing.feature.${key}.title`) }), h('p', { class: 'muted', text: t(`landing.feature.${key}.text`) })),
-    ),
-  );
+function paintIndustries() {
   document.getElementById('industries').replaceChildren(
     ...(configError ? [errorState(configError, () => location.reload())] : []),
     ...config.sectors.map(({ id, icon: sectorIcon }) =>
       h(
         'article',
-        { class: 'card industry' },
-        h('h3', { class: 'row' }, icon(sectorIcon), t(`sector.${id}`)),
+        { class: 'card industry', 'data-tone': SECTOR_TONE[id] ?? 'checkin', 'data-tilt': '', 'data-shine': '' },
+        h('span', { class: 'tile-icon tile-icon-lg bob' }, icon(sectorIcon)),
+        h('h3', { text: t(`sector.${id}`) }),
         h('p', { class: 'muted', text: t(`landing.industry.${id}.who`) }),
         h('ul', {}, ...[1, 2, 3].map((n) => h('li', { text: t(`landing.industry.${id}.${n}`) }))),
       ),
     ),
   );
-  const need = new URLSearchParams(location.search).get('need');
+}
+
+function paintContent() {
+  paintSignin();
+  paintTourButton();
+  paintIndustries();
   const note = document.getElementById('need');
-  note.hidden = !(need in buttons);
+  note.hidden = !params.has('need');
   if (!note.hidden) note.textContent = t('landing.needLogin');
   applyTranslations();
 }
 
-for (const [kind, button] of Object.entries(buttons)) button.addEventListener('click', () => toggle(kind));
 document.addEventListener('langchange', paintContent);
 paintContent();
-const need = new URLSearchParams(location.search).get('need');
-if (need in buttons) toggle(need);
+startFx(document);

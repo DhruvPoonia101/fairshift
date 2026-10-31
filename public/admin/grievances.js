@@ -41,14 +41,36 @@ function openUpdateDialog(item, onSaved) {
   });
 }
 
+/** A small picture on the report; select it to see it larger in a dialog (focus is trapped, Esc closes, focus returns to the thumbnail). */
+function photoThumb(item) {
+  const src = `/api/admin/grievances/${item.id}/photo`;
+  const thumb = h('img', { class: 'photo-thumb-img', src, alt: t('photo.thumbAlt'), width: 64, height: 64, loading: 'lazy', decoding: 'async' });
+  const button = h(
+    'button',
+    {
+      type: 'button',
+      class: 'photo-thumb',
+      onclick: () =>
+        openDialog({
+          title: t('photo.dialogTitle'),
+          body: [h('img', { class: 'photo-large', src, alt: t('photo.alt') })],
+          actions: (close) => [iconButton('check', t('common.done'), { class: 'btn btn-primary', onclick: close })],
+        }),
+    },
+    thumb,
+  );
+  thumb.addEventListener('error', () => button.remove()); // a picture that cannot load leaves no broken box behind
+  return button;
+}
+
 function row(item, onSaved) {
   return h(
     'tr',
     {},
     h('td', { text: item.anonymous ? dateIst(item.createdAt) : dateTimeIst(item.createdAt) }),
     h('td', {}, item.anonymous ? chip('info', 'eyeOff', t('grievances.anonymous')) : h('span', { text: item.worker?.name ?? '' })),
-    h('td', {}, h('span', { class: 'row' }, icon(item.category === 'pay' ? 'wallet' : 'alert'), t(`cat.${item.category}`))),
-    h('td', { class: 'cell-wide' }, h('p', { text: item.text }), item.recordedOffline ? chip('info', 'wifiOff', t('offline.badge')) : null, item.resolutionNote ? h('p', { class: 'muted', text: `${t('report.note')}: ${item.resolutionNote}` }) : null),
+    h('td', {}, h('span', { class: 'row' }, icon(item.category === 'pay' ? 'rupee' : 'alert'), t(`cat.${item.category}`))),
+    h('td', { class: 'cell-wide' }, h('p', { text: item.text }), item.hasPhoto ? photoThumb(item) : null, item.recordedOffline ? chip('info', 'wifiOff', t('offline.badge')) : null, item.resolutionNote ? h('p', { class: 'muted', text: `${t('report.note')}: ${item.resolutionNote}` }) : null),
     h('td', {}, severityChip(item.severity)),
     h('td', {}, statusChip(item.status)),
     h('td', {}, item.status === 'resolved' ? null : iconButton('check', t('grievances.update'), { onclick: () => openUpdateDialog(item, onSaved) })),

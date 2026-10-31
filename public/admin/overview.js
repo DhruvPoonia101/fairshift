@@ -1,7 +1,7 @@
 import { api } from '../shared/api.js';
 import { busy, cancelButton, chip, h, iconButton, openDialog, showError, toast } from '../shared/dom.js';
 import { dayLabel, hoursMinutes, number } from '../shared/format.js';
-import { icon } from '../shared/icons.js';
+import { icon, toneOf } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -42,7 +42,7 @@ function gauge(result) {
     const [x2, y2] = gaugePoint(mark, radius + 8);
     svg.append(svgEl('line', { class: 'gauge-tick', x1, y1, x2, y2 }));
   }
-  svg.append(svgEl('text', { class: 'gauge-score', x: cx, y: cy - 6 }, result.score === null ? '–' : String(result.score)));
+  svg.append(svgEl('text', { class: 'gauge-score', 'data-count': '', x: cx, y: cy - 6 },result.score === null ? '–' : String(result.score)));
   svg.append(svgEl('text', { class: 'gauge-of', x: cx, y: cy + 8 }, '/ 100'));
   return svg;
 }
@@ -138,7 +138,7 @@ function scoreCard(result) {
       'div',
       { class: 'score-top' },
       gauge(result),
-      h('div', { class: 'stack-sm' }, h('p', { class: 'big', text: result.score === null ? t('dws.noScore') : t('dws.scoreOf', { score: result.score }) }), bandChip, h('p', { class: 'hint', text: t('dws.coverage', { coverage: Math.round(result.coverage * 100) }) })),
+      h('div', { class: 'stack-sm' }, h('p', { class: 'big', 'data-count': '', text: result.score === null ? t('dws.noScore') : t('dws.scoreOf', { score: result.score }) }), bandChip, h('p', { class: 'hint', text: t('dws.coverage', { coverage: Math.round(result.coverage * 100) }) })),
     ),
     h('div', { class: 'score-cols' },
       h('section', { class: 'stack-sm', 'aria-labelledby': 'dws-comp' }, h('h3', { id: 'dws-comp', text: t('dws.components') }), h('ul', { class: 'stack' }, ...result.components.map(componentRow))),
@@ -150,7 +150,7 @@ function scoreCard(result) {
 }
 
 function kpi({ iconName, value, label, href }) {
-  return h(href ? 'a' : 'div', { class: 'card kpi', href }, h('span', { class: 'row' }, icon(iconName), h('span', { text: label })), h('span', { class: 'big', text: value }));
+  return h(href ? 'a' : 'div', { class: 'card kpi', href }, h('span', { class: 'row', 'data-tone': toneOf(iconName) }, icon(iconName, 'tinted'), h('span', { text: label })), h('span', { class: 'big', 'data-count': '', text: value }));
 }
 
 /** 14-day attendance bars as inline SVG (no chart library). */
