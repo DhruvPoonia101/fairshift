@@ -57,7 +57,9 @@ src/routes/              one file per resource
 src/middleware/          auth (sessions + anonymous tokens), validate, security, errors, offline (idempotency + owner), static-gzip
 src/lib/                 time, random, geo, errors, capture (what to believe about a phone's time), precache
 public/                  index.html, worker/, admin/, passport/, shared/ (css + js), i18n/*.json, sw.js
-public/shared/           queue.js (offline queue, pure), actions.js, tracking-code.js, outbox.js (IndexedDB + fetch), outbox-ui.js, offline-db.js
+public/shared/           base.css (design tokens and components), chrome.js (top bar, nav), prefs.js, queue.js (offline queue, pure), actions.js, tracking-code.js, outbox.js (IndexedDB + fetch), outbox-ui.js, offline-db.js
+public/fonts/, logo.svg   self-hosted Inter and Fraunces (Latin variable woff2), the FairShift mark and PWA icons
+scripts/                  copy-fonts.mjs, make-icons.py (dev tooling, not part of the running app)
 tests/                   unit + API tests (node:test, no test framework)
 ```
 
@@ -84,15 +86,46 @@ tests/                   unit + API tests (node:test, no test framework)
 
 ## Accessibility measures
 
-- WCAG AA colour contrast, verified by `tests/contrast.test.js` for the light and dark themes (4.5:1 text, 3:1 borders and focus ring).
-- **Display settings** (worker app, **Me** tab): three text sizes (normal, large, extra large) and a **High contrast** switch, remembered on the device in `localStorage` (`fairshift.prefs`) and applied before the first paint by `public/shared/prefs-boot.js`, so there is no flash. High contrast works on top of both the light and the dark theme and is tested at 7:1 (WCAG AAA) for text. Logic and tests: `public/shared/prefs.js`, `tests/prefs.test.js`.
-- Worker bottom bar: **Home, Pay, Reports, Me**, large icons, 72 px targets. The current tab is shown by a bar on top, a bolder underlined label and a heavier icon, not colour alone. Passport and Feedback live under **Me**; attendance under **Home**. Mapping and tests: `public/worker/nav.js`, `tests/nav.test.js`.
+- WCAG AA colour contrast, verified by `tests/contrast.test.js` for the light and dark themes (4.5:1 text, 3:1 borders and focus ring) and 7:1 for both high-contrast variants. Every token pair is tested; the thresholds are never relaxed, so a palette change that fails them fails the build.
+- **Display settings** (worker app, **Settings**): colour theme (**System**, **Light**, **Dark**), three text sizes (normal, large, extra large) and a **High contrast** switch, remembered on the device in `localStorage` (`fairshift.prefs`) and applied before the first paint by `public/shared/prefs-boot.js`, so there is no flash. The theme also has a toggle in every top bar. High contrast works on top of both themes and is tested at 7:1 (WCAG AAA) for text. Logic and tests: `public/shared/prefs.js`, `tests/prefs.test.js` (the boot script is run against a fake page and compared with `prefs.js`).
+- Navigation targets are 48 px or larger (tabs 68 px); the current page is shown by icon, label, weight, underline and an indicator bar, not colour alone. See "Design system and navigation" below.
 - Every screen in both apps shows a loading skeleton (no layout shift), a friendly empty state, and an error state with a **Try again** button, in English, Hindi and Tamil (`public/shared/states.js`).
 - Skip-to-content link, landmarks (`header`, `nav`, `main`), every input has a `<label>`, visible `:focus-visible` outline, `aria-current` on the active tab / section, `aria-live` regions for status and toasts.
 - Fully keyboard operable: native `<dialog>` for modals (focus trap, Esc closes, focus returns), radio groups for category and rating pickers, no keyboard traps.
 - 48 px minimum touch targets, `rem` units (text scales), works at 320 px width without horizontal scroll, respects `prefers-reduced-motion` and `prefers-color-scheme`.
 - Status is never colour-only: every chip pairs an icon with a word; every screen is icon + text.
 - Charts are inline SVG with a text label and a "show as table" alternative.
+
+## Design system and navigation
+
+Calm, premium, trustworthy: layered surfaces, hairline borders, soft shadows, one accent (champagne gold) and **no blue anywhere** (`tests/contrast.test.js` scans every style, page, icon and script for blue).
+
+**Tokens.** All colours, spacing, radius, elevation and motion values are defined once at the top of `public/shared/base.css`; screens only use `var(--...)`.
+
+| | Dark | Light |
+| --- | --- | --- |
+| Background / surfaces | ink `#0B0E12`, `#12161C`, `#181D24` | warm ivory `#FAF7F2`, white, `#F8F4EC` |
+| Text / muted | ivory `#F3EEE4` / `#A8A398` | deep ink `#14110D` / `#5C5546` |
+| Accent (text, borders) | champagne gold `#D6B26A` | deep gold `#8A6A1F` |
+| Fills (buttons) | gold `#D6B26A` with ink text | gold `#D6B26A` with ink text |
+
+Status colours (success green, warning orange, danger red, neutral info) are always paired with an icon and a word. The dark block is written twice (device preference, and the explicit choice) and a test checks the two are identical. The theme follows the device until someone chooses (top-bar toggle or Settings); the choice is remembered per device and applied before first paint.
+
+**Type.** Headings use **Fraunces** (display serif) and the interface **Inter**, both self-hosted variable woff2 files in `public/fonts` (Latin only, about 83 KB together, `font-display: swap`, no CDN, CSP unchanged). Body text is 16 px or larger with a 1.6 line height. Hindi and Tamil use the system font stack (Noto, Nirmala UI), which reads better than a Latin face with fallbacks. The `@fontsource-variable/*` packages are **devDependencies only**: `npm run fonts` (`scripts/copy-fonts.mjs`) copies the Latin files and their licences into `public/fonts`; nothing about fonts is a runtime dependency and the Docker image (`npm ci --omit=dev`) does not contain them. The fonts are cached for a week and are part of the offline precache.
+
+**Logo.** `public/logo.svg` is an original mark: a clock face whose lower half is filled (the shift) with a balance arm through it (fairness), gold on ink. It is the top-bar logo, the favicon (`icon.svg`), the PWA icon (`manifest.webmanifest`: SVG, PNG 192 and 512, and a maskable 512 from `scripts/make-icons.py`) and it prints on the public passport. All of it is in the offline precache.
+
+**Navigation** (both apps; `public/shared/chrome.js`, `public/worker/nav.js`)
+
+- **Top bar** on every page, fixed to the top: logo and wordmark on the left; on the right the light/dark toggle, the language selector (a compact globe button on phones, a normal select from 600 px) and sign-out (worker phones: in Settings).
+- **Worker, 900 px and up:** a fixed left sidebar with icon and label for all seven destinations: **Home, Pay, Reports, Disputes, Passport**, then **Feedback** and **Settings**.
+- **Worker, phones and small tablets:** a fixed bottom bar with five tabs (Home, Pay, Reports, Disputes, Passport); **Feedback** and **Settings** are labelled icon buttons in the top bar. There is no separate "Me" tab: **Settings** holds language, colour theme, text size, high contrast and sign out. *Disputes* is the attendance-and-disputes screen (its address is still `#records`, which the Judge tour uses).
+- **Employer:** the same top bar and theme toggle; a fixed sidebar on desktop; a horizontally scrollable bottom bar on phones.
+- Tables in the employer app become labelled cards on phones (`labelCells` in `public/shared/dom.js`), so no screen scrolls sideways at 360 px.
+
+**Pages.** The worker Home reads top to bottom: greeting, a prominent *today* card with **one** primary action (I'm at work / I'm leaving work), a quick-actions grid (scan QR, type code, pay, reports, disputes, passport, feedback), then slim expandable alerts: rest warnings stay on screen but compact. On the employer Overview the Decent Work Score card is the hero. The landing page has a hero, two sign-in buttons, the Judge tour button, three sector cards and a short feature list.
+
+**Motion** uses two short durations and one easing curve and is switched off by `prefers-reduced-motion`.
 
 ## Demo guide
 
@@ -113,7 +146,7 @@ Open `/` and press **I am a worker** or **I am an employer**; the demo buttons s
 1. Worker (construction): the home screen already shows a gentle rest notice. Tap **I'm at work** (or **Type code** with the code from the employer screen).
 2. **Pay**: read the payslip, tap **Read all aloud**, then **Something looks wrong** and send.
 3. **Report**: pick **Scaffolding or height**, type or speak, tick **Report without my name**, send. Note the secret code, then check its status further down the page.
-4. **Me**, then **Feedback** and **Passport**: rate, add a skill, **Create link** and open the print view.
+4. **Feedback** (top bar on a phone, sidebar on desktop) and **Passport**: rate, add a skill, **Create link** and open the print view.
 5. Switch language (top right) to Hindi or Tamil on any screen.
 6. Employer: **Overview** (KPIs, 14-day trend), **Reports** (move your grievance to *Being checked*, then *Solved* with a note; the anonymous one shows no name), **People care** (fatigue list, attrition reasons), **Feedback** (the *Rules and pay policy* group is hidden: fewer than 3 answers), **Skills** (verify an entry), **Attendance** (QR and code), **Payslips**.
 7. Worker, **Pay**: switch to last month: **Underpaid, here is why** (overtime paid at the normal rate), with the expected and paid amounts and **Read this aloud**. Employer, **Pay compliance**: the flagged payslips and the shortfall.

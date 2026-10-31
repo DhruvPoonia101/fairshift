@@ -46,20 +46,30 @@ function bar(minutes) {
   return svg;
 }
 
+/**
+ * Rest warnings stay visible but compact: one slim line (icon, title, level) that opens to the reasons.
+ * Nothing is hidden for good: an amber or red level is always on screen, just not shouting.
+ */
 function restNotice(rest) {
   if (rest.level === 'none') return null;
   const reasons = rest.flags.map((f) =>
     h('li', { text: t(`rest.reason.${f.rule}`, { ...f.params, time: hoursMinutes(f.params.minutes ?? 0) }) }),
   );
   return h(
-    'section',
-    { class: 'banner', role: 'note', 'aria-labelledby': 'rest-title' },
-    icon('moon'),
-    h('div', { class: 'stack-sm' }, h('strong', { id: 'rest-title', text: t('rest.title') }), h('p', { text: t(`rest.body.${rest.level}`) }), h('ul', {}, ...reasons)),
+    'details',
+    { class: `alert-card alert-${rest.level}` },
+    h(
+      'summary',
+      {},
+      h('span', { class: 'alert-title' }, icon('moon'), h('strong', { text: t('rest.title') })),
+      h('span', { class: 'alert-meta' }, chip(rest.level === 'red' ? 'danger' : 'warn', 'alert', t(`rest.level.${rest.level}`)), h('span', { class: 'alert-toggle', 'aria-hidden': 'true' })),
+    ),
+    h('div', { class: 'stack-sm alert-body' }, h('p', { text: t(`rest.body.${rest.level}`) }), h('ul', { class: 'bullets' }, ...reasons)),
   );
 }
 
-function statusCard(today) {
+/** Today: what the status is, and the ONE thing to do about it. */
+function todayCard(today, action) {
   const text = {
     not_started: t('home.notStarted'),
     working: t('home.working', { time: today.since ? timeIst(today.since) : '' }),
@@ -67,17 +77,35 @@ function statusCard(today) {
   }[today.status];
   return h(
     'section',
-    { class: `card status-card ${today.status}`, 'aria-labelledby': 'status-title' },
-    icon(today.status === 'done' ? 'check' : 'clock'),
+    { class: `card card-raised today-card ${today.status}`, 'aria-labelledby': 'status-title' },
+    h('p', { class: 'eyebrow', text: t('home.today') }),
     h(
       'div',
-      { class: 'stack-sm' },
-      h('h2', { id: 'status-title', text }),
-      today.totalMinutes > 0 ? h('p', { class: 'muted', text: t('home.sofar', { time: hoursMinutes(today.totalMinutes) }) }) : null,
-      today.overtimeMinutes > 0 ? chip('info', 'clock', t('home.overtime', { time: hoursMinutes(today.overtimeMinutes) })) : null,
-      today.pending ? chip('info', 'clock', t('outbox.status.queued')) : null,
+      { class: 'today-head' },
+      h('span', { class: 'today-icon', 'aria-hidden': 'true' }, icon(today.status === 'done' ? 'check' : 'clock')),
+      h(
+        'div',
+        { class: 'stack-sm' },
+        h('h2', { id: 'status-title', text }),
+        today.totalMinutes > 0 ? h('p', { class: 'muted', text: t('home.sofar', { time: hoursMinutes(today.totalMinutes) }) }) : null,
+        today.overtimeMinutes > 0 || today.pending
+          ? h(
+              'div',
+              { class: 'row' },
+              today.overtimeMinutes > 0 ? chip('info', 'clock', t('home.overtime', { time: hoursMinutes(today.overtimeMinutes) })) : null,
+              today.pending ? chip('info', 'clock', t('outbox.status.queued')) : null,
+            )
+          : null,
+      ),
     ),
+    action,
   );
+}
+
+/** A big, labelled tile: a link to a screen, or a button for an action on this screen. */
+function tile(iconName, label, props) {
+  const { href, onclick } = props;
+  return h(href ? 'a' : 'button', { class: 'quick-tile', ...(href ? { href } : { type: 'button', onclick }) }, h('span', { class: 'quick-icon', 'aria-hidden': 'true' }, icon(iconName)), h('span', { text: label }));
 }
 
 function weekList(recent) {
@@ -160,7 +188,7 @@ function openScanner(submit) {
     });
 }
 
-/** Worker home: today's status, one big check-in/out button, rest notice and the last 7 days. */
+/** Worker home: greeting, today's status with one main action, quick actions, then alerts and the week. */
 export async function renderHome(session, rerender) {
   // Works with no signal: the last good copy of today is shown, and what the worker does is kept in the outbox.
   let copy;
@@ -202,25 +230,25 @@ export async function renderHome(session, rerender) {
     }),
   );
 
+  const quick = [
+    today.status !== 'working' && canScan ? tile('qr', t('home.scan'), { onclick: () => openScanner(submit) }) : null,
+    today.status !== 'working' ? tile('lock', t('home.enterCode'), { onclick: () => openCodeDialog(submit) }) : null,
+    tile('wallet', t('tab.pay'), { href: '#pay' }),
+    tile('alert', t('tab.report'), { href: '#report' }),
+    tile('calendar', t('tab.disputes'), { href: '#records' }),
+    tile('badge', t('tab.passport'), { href: '#passport' }),
+    tile('smile', t('tab.feedback'), { href: '#feedback' }),
+  ];
+
   return h(
     'div',
-    { class: 'stack' },
-    h('h1', { text: t('home.greeting', { name: session.user.name }) }),
-    h('p', { class: 'muted row' }, icon('pin'), `${session.user.site ?? ''}`),
+    { class: 'stack home' },
+    h('header', { class: 'stack-sm greeting' }, h('h1', { text: t('home.greeting', { name: session.user.name }) }), session.user.site ? h('p', { class: 'muted row' }, icon('pin'), session.user.site) : null),
     copy.stale ? (copy.none ? h('div', { class: 'banner', role: 'note' }, icon('wifiOff'), h('p', { text: t('outbox.noCopy') })) : staleNotice(copy.savedAt)) : null,
+    todayCard(today, main),
+    h('nav', { class: 'quick-grid', 'aria-label': t('home.quick') }, ...quick),
     restNotice(today.rest),
-    statusCard(today),
-    main,
-    today.status === 'working'
-      ? null
-      : h(
-          'div',
-          { class: 'row' },
-          canScan ? iconButton('qr', t('home.scan'), { onclick: () => openScanner(submit) }) : null,
-          iconButton('lock', t('home.enterCode'), { onclick: () => openCodeDialog(submit) }),
-        ),
     outboxPanel(),
     today.recent.length > 0 ? weekList(today.recent) : null,
-    h('a', { class: 'btn btn-block', href: '#records' }, icon('alert'), t('home.contestLink')),
   );
 }

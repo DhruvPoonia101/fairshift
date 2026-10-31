@@ -3,8 +3,8 @@ import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /** Folders whose files the worker app needs to open with no signal. */
-const FOLDERS = ['shared', 'worker', 'i18n'];
-const ROOT_FILES = ['landing.js', 'landing.css', 'icon.svg', 'manifest.webmanifest'];
+const FOLDERS = ['shared', 'worker', 'i18n', 'fonts'];
+const ROOT_FILES = ['landing.js', 'landing.css', 'logo.svg', 'icon.svg', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 const SHELL_PAGES = ['/', '/worker/'];
 
 /**
@@ -24,6 +24,7 @@ export function buildPrecacheList(publicDir) {
   for (const folder of FOLDERS) {
     for (const name of readdirSync(path.join(publicDir, folder)).sort()) {
       if (folder === 'worker' && name === 'index.html') continue; // stored as "/worker/"
+      if (name.endsWith('.txt')) continue; // font licences: shipped, but not needed to run the app
       add(`/${folder}/${name}`, path.join(publicDir, folder, name));
     }
   }

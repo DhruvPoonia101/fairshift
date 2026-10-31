@@ -9,7 +9,7 @@
  *     classic service worker cannot import a module; tests/offline-sw.test.js keeps the numbers equal.
  */
 const CACHE_PREFIX = 'fairshift-static-';
-const STATIC_PATH = /^\/(shared|worker|admin|passport|i18n)\/|^\/(landing\.(js|css)|icon\.svg|manifest\.webmanifest)$/;
+const STATIC_PATH = /^\/(shared|worker|admin|passport|i18n|fonts)\/|^\/(landing\.(js|css)|logo\.svg|icon[\w-]*\.(svg|png)|manifest\.webmanifest)$/;
 const SHELL_PAGES = ['/', '/worker/'];
 
 const SYNC_TAG = 'fairshift-outbox';

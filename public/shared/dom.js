@@ -35,6 +35,25 @@ export function fill(parent, ...children) {
   parent.replaceChildren(...children.flat().filter((child) => child !== null && child !== undefined && child !== false));
 }
 
+/**
+ * Makes tables readable on a phone: every cell gets the text of its column header as `data-label`, and the table
+ * gets the `responsive` class, so the CSS can show each row as a card of "label: value" lines (see base.css).
+ * Header-less tables, and cells beyond the last header, are left alone.
+ * @param {{ querySelectorAll: (selector: string) => Iterable<any> }} root
+ */
+export function labelCells(root) {
+  for (const table of root.querySelectorAll('table')) {
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    if (heads.length === 0) continue;
+    for (const row of table.querySelectorAll('tbody tr')) {
+      [...row.children].forEach((cell, index) => {
+        if (heads[index] !== undefined) cell.dataset.label = heads[index];
+      });
+    }
+    table.classList.add('responsive');
+  }
+}
+
 /** Button with a leading icon and a visible text label. */
 export function iconButton(iconName, label, props = {}) {
   const { class: cls = 'btn', ...rest } = props;

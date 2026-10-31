@@ -1,9 +1,7 @@
-import { h } from '../shared/dom.js';
-import { icon } from '../shared/icons.js';
-import { t } from '../shared/i18n.js';
+import { paintSidenav, paintTabbar, paintTopLinks } from '../shared/chrome.js';
 import { bootApp, startRouter } from '../shared/shell.js';
 import { errorState, skeleton } from '../shared/states.js';
-import { TABS, tabForScreen } from './nav.js';
+import { EXTRAS, SIDEBAR_GROUPS, TABS, tabForScreen } from './nav.js';
 
 // Each screen is imported when it is first opened, so a low-end phone only downloads what it shows.
 const screen = (file, name) => () => import(file).then((module) => module[name]);
@@ -13,9 +11,9 @@ const VIEWS = {
   records: screen('./records.js', 'renderRecords'),
   pay: screen('./pay.js', 'renderPay'),
   report: screen('./report.js', 'renderReport'),
-  me: screen('./me.js', 'renderMe'),
   passport: screen('./passport.js', 'renderPassport'),
   feedback: screen('./feedback.js', 'renderFeedback'),
+  settings: screen('./settings.js', 'renderSettings'),
 };
 
 const session = await bootApp('worker');
@@ -27,19 +25,13 @@ if (session) {
   mountOutboxBanner();
 
   const main = document.getElementById('main');
-  const tabList = document.querySelector('#tabbar ul');
   let renderToken = 0;
 
-  const paintTabs = (activeTab) => {
-    tabList.replaceChildren(
-      ...TABS.map((tab) =>
-        h(
-          'li',
-          {},
-          h('a', { href: `#${tab.id}`, 'aria-current': tab.id === activeTab ? 'page' : null }, icon(tab.icon), h('span', { text: t(tab.labelKey) })),
-        ),
-      ),
-    );
+  // The same destinations three ways: left sidebar (900px and up), bottom bar and top-bar buttons (phones).
+  const paintTabs = (current) => {
+    paintSidenav(document.querySelector('#sidenav ul'), SIDEBAR_GROUPS, current);
+    paintTabbar(document.querySelector('#tabbar ul'), TABS, current);
+    paintTopLinks(document.getElementById('toplinks'), EXTRAS, current);
   };
 
   const show = async (name) => {

@@ -108,7 +108,8 @@ export function createApp({
   app.get('/p/:token', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'passport', 'index.html')));
   // no-cache = always revalidate (cheap 304 via ETag), so a new release is never hidden behind a stale cached script.
   app.use(gzipStatic(PUBLIC_DIR));
-  app.use(express.static(PUBLIC_DIR, { setHeaders: (res) => res.set('Cache-Control', 'no-cache') }));
+  // Scripts and styles revalidate every time; the font files never change under the same name, so they may be kept for a week.
+  app.use(express.static(PUBLIC_DIR, { setHeaders: (res, file) => res.set('Cache-Control', file.endsWith('.woff2') ? 'public, max-age=604800' : 'no-cache') }));
   app.use((req, res) => res.status(404).type('text/plain').send('Not found'));
   app.use(errorHandler(logError));
   return app;
