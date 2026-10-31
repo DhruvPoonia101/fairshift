@@ -131,7 +131,7 @@ function scoreCard(result) {
   bandChip.classList.add('chip-lg');
   return h(
     'section',
-    { class: 'card card-hero stack score-card', 'aria-labelledby': 'dws-title' },
+    { class: 'card stack score-card', 'aria-labelledby': 'dws-title' },
     h('h2', { id: 'dws-title', class: 'row' }, icon('scale'), t('dws.title')),
     h('p', { class: 'muted', text: t('dws.intro') }),
     h(
@@ -225,10 +225,10 @@ export async function renderOverview(session, rerender) {
     'div',
     { class: 'stack' },
     h('h1', { text: t('overview.title') }),
-    scoreCard(score),
     k.certificatesNeedingAttention > 0
       ? h('a', { class: 'banner', href: '#skills' }, icon('badge'), h('p', { text: t('overview.certAlert', { count: k.certificatesNeedingAttention }) }))
       : null,
+    scoreCard(score),
     h(
       'div',
       { class: 'grid' },

@@ -1,6 +1,5 @@
 import { api } from '../shared/api.js';
 import '../shared/pwa.js';
-import { mountThemeToggle } from '../shared/chrome.js';
 import { expiryChip, verifiedChip } from '../shared/badges.js';
 import { h, iconButton } from '../shared/dom.js';
 import { dayLabel } from '../shared/format.js';
@@ -30,7 +29,6 @@ async function paint(main) {
       h(
         'div',
         { class: 'sheet' },
-        h('div', { class: 'print-brand' }, h('img', { src: '/logo.svg', alt: '', width: 32, height: 32 }), h('span', { text: 'FairShift' })),
         h('h1', { text: pass.name }),
         h('p', { class: 'row muted' }, icon('building'), `${t(`role.${pass.role}`)} · ${pass.employer}`),
         h('p', { class: 'hint', text: t('passportPage.asOf', { date: dayLabel(pass.generatedOn, false) }) }),
@@ -52,7 +50,6 @@ async function paint(main) {
 
 await initI18n();
 mountLanguageSwitcher(document.getElementById('lang'));
-mountThemeToggle(document.getElementById('theme-toggle'));
 const main = document.getElementById('main');
 document.addEventListener('langchange', () => paint(main));
 await paint(main);

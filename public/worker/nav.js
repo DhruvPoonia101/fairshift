@@ -1,27 +1,15 @@
 /**
- * The worker app's destinations. Pure data (no DOM), so the mapping can be tested.
- *  - TABS: the five on the phone's bottom bar.
- *  - EXTRAS: Feedback and Settings, labelled icon buttons in the top bar on phones.
- * On a wide screen (900px and up) all seven are in the left sidebar. An id is also the page's hash: `#pay`.
- * "records" is the attendance-and-disputes screen (the tour and old links use that address), labelled Disputes.
+ * The worker app's bottom navigation: four tabs, each owning the screens reached from it.
+ * Pure data (no DOM), so the mapping can be tested.
  */
 export const TABS = Object.freeze([
-  { id: 'home', icon: 'home', labelKey: 'tab.home' },
-  { id: 'pay', icon: 'wallet', labelKey: 'tab.pay' },
-  { id: 'report', icon: 'alert', labelKey: 'tab.report' },
-  { id: 'records', icon: 'calendar', labelKey: 'tab.disputes' },
-  { id: 'passport', icon: 'badge', labelKey: 'tab.passport' },
+  { id: 'home', icon: 'home', labelKey: 'tab.home', screens: ['home', 'records'] },
+  { id: 'pay', icon: 'wallet', labelKey: 'tab.pay', screens: ['pay'] },
+  { id: 'report', icon: 'alert', labelKey: 'tab.report', screens: ['report'] },
+  { id: 'me', icon: 'user', labelKey: 'tab.me', screens: ['me', 'passport', 'feedback'] },
 ]);
 
-export const EXTRAS = Object.freeze([
-  { id: 'feedback', icon: 'smile', labelKey: 'tab.feedback' },
-  { id: 'settings', icon: 'gear', labelKey: 'tab.settings' },
-]);
+export const SCREENS = Object.freeze(TABS.flatMap((tab) => tab.screens));
 
-/** The sidebar: the five main places, then a divider, then Feedback and Settings. */
-export const SIDEBAR_GROUPS = Object.freeze([TABS, EXTRAS]);
-export const DESTINATIONS = Object.freeze([...TABS, ...EXTRAS]);
-export const SCREENS = Object.freeze(DESTINATIONS.map((d) => d.id));
-
-/** Which destination is marked as current for a screen (every screen is its own destination). */
-export const tabForScreen = (screen) => DESTINATIONS.find((d) => d.id === screen)?.id ?? null;
+/** Which tab is lit for a screen (a screen reached from a tab keeps that tab lit). */
+export const tabForScreen = (screen) => TABS.find((tab) => tab.screens.includes(screen))?.id ?? null;

@@ -1,11 +1,8 @@
-main { padding-top: var(--space-6); padding-bottom: var(--space-7); max-width: 46rem; outline: none; }
-.sheet { display: flex; flex-direction: column; gap: var(--space-4); }
-.print-brand { display: none; }
+main { padding-top: 1.5rem; padding-bottom: 2rem; max-width: 44rem; outline: none; }
+.sheet { display: flex; flex-direction: column; gap: 1rem; }
 @media print {
   body { background: #fff; color: #000; }
   .no-print, .skip-link, .toasts { display: none !important; }
-  .print-brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; margin-bottom: 1rem; }
-  .print-brand img { width: 2rem; height: 2rem; }
-  .card { box-shadow: none; border: 1px solid #000; break-inside: avoid; background: #fff; }
+  .card { box-shadow: none; border: 1px solid #000; break-inside: avoid; }
   .chip { border: 1px solid #000; color: #000; background: #fff; }
 }

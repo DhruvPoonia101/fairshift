@@ -426,6 +426,7 @@
   "err.dispute_already_decided": "इस आपत्ति पर पहले ही फ़ैसला हो चुका है।",
   "err.record_changed": "आपत्ति दर्ज होने के बाद रिकॉर्ड बदल गया।",
   "nav.disputes": "हाज़िरी आपत्तियाँ",
+  "home.contestLink": "किसी दिन में गड़बड़ है? आपत्ति दर्ज करें",
   "records.title": "मेरी हाज़िरी",
   "records.intro": "अगर कोई दिन गलत दर्ज है, तो पिछले {days} दिनों के लिए आप आपत्ति कर सकते हैं।",
   "records.contest": "इस दिन पर आपत्ति करें",
@@ -544,6 +545,8 @@
   "demo.resetDone": "डेमो डेटा रीसेट हो गया।",
   "err.demo_mode_required": "डेमो रीसेट सिर्फ़ डेमो मोड में मिलता है।",
 
+  "tab.me": "मैं",
+  "me.title": "मैं",
   "me.display": "दिखावट की सेटिंग",
   "me.textSize": "अक्षरों का आकार",
   "me.textSizeHint": "इस फ़ोन पर सारे अक्षर बड़े हो जाते हैं।",
@@ -553,6 +556,8 @@
   "me.contrast": "तेज़ कंट्रास्ट",
   "me.contrastHelp": "गहरे रंग और मोटी सीमाएँ, ताकि पढ़ना आसान हो।",
   "me.saved": "इस फ़ोन पर सहेजा गया।",
+  "me.more": "और",
+  "me.records": "मेरी हाज़िरी और आपत्तियाँ",
   "state.errorTitle": "यह लोड नहीं हो सका",
   "state.errorHint": "अपना इंटरनेट जाँचें, फिर दोबारा कोशिश करें।",
   "empty.records.title": "अभी कोई हाज़िरी नहीं",
@@ -664,23 +669,5 @@
   "err.tracking_code_taken": "यह ट्रैकिंग कोड पहले से इस्तेमाल में है। नई शिकायत करें।",
   "err.check_out_before_check_in": "चेक-आउट का समय चेक-इन से पहले है।",
 
-  "outbox.titleSent": "इस फ़ोन से भेजे गए",
-
-  "tab.disputes": "आपत्तियाँ",
-  "tab.settings": "सेटिंग",
-  "worker.quick": "त्वरित लिंक",
-  "theme.toLight": "हल्की थीम पर जाएँ",
-  "theme.toDark": "गहरी थीम पर जाएँ",
-  "theme.light": "हल्की",
-  "theme.dark": "गहरी",
-  "theme.system": "सिस्टम",
-  "theme.label": "रंग थीम",
-  "theme.hint": "सिस्टम आपके फ़ोन की सेटिंग मानता है। हल्की और गहरी इस फ़ोन में याद रहती हैं।",
-  "settings.title": "सेटिंग",
-  "home.today": "आज",
-  "home.quick": "त्वरित काम",
-  "rest.level.amber": "ध्यान रखें",
-  "rest.level.red": "आराम ज़रूरी",
-
-  "landing.eyebrow": "हर किसी के लिए सम्मानजनक काम"
+  "outbox.titleSent": "इस फ़ोन से भेजे गए"
 }

@@ -9,4 +9,3 @@ coverage
 README.md
 Dockerfile
 .dockerignore
-scripts

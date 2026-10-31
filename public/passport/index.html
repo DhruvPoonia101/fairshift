@@ -3,25 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0B0E12" media="(prefers-color-scheme: dark)">
   <meta name="robots" content="noindex">
   <title data-i18n="passportPage.title">FairShift - Skill passport</title>
   <script src="/shared/prefs-boot.js"></script>
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/shared/base.css">
   <link rel="stylesheet" href="/passport/passport.css">
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
-  <header class="topbar no-print">
-    <div class="topbar-inner">
-      <a class="brand" href="/" aria-label="FairShift"><img src="/logo.svg" alt="" width="32" height="32"><span class="brand-name">FairShift</span></a>
-      <div class="topbar-actions">
-        <button id="theme-toggle" class="icon-btn" type="button"></button>
-        <div class="lang" id="lang"></div>
-      </div>
+  <header class="site-header no-print">
+    <div class="container">
+      <span class="brand">FairShift</span>
+      <div class="lang" id="lang"></div>
     </div>
   </header>
   <main id="main" class="container stack" tabindex="-1"></main>

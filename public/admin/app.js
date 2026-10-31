@@ -1,5 +1,6 @@
-import { paintSidenav, paintTabbar } from '../shared/chrome.js';
-import { labelCells } from '../shared/dom.js';
+import { h } from '../shared/dom.js';
+import { icon } from '../shared/icons.js';
+import { t } from '../shared/i18n.js';
 import { bootApp, startRouter } from '../shared/shell.js';
 import { errorState, skeleton } from '../shared/states.js';
 
@@ -17,8 +18,6 @@ const SECTIONS = [
   { id: 'compliance', icon: 'scale', load: section('./compliance.js', 'renderCompliance') },
   { id: 'disputes', icon: 'calendar', load: section('./disputes.js', 'renderDisputes') },
 ];
-// The same list is the sidebar (900px and up) and a scrollable bottom bar (phones).
-const NAV = SECTIONS.map(({ id, icon }) => ({ id, icon, labelKey: `nav.${id}` }));
 const VIEWS = Object.fromEntries(SECTIONS.map((s) => [s.id, s.load]));
 // Placeholder shapes that roughly match each section, so the page does not jump when it arrives.
 const SKELETONS = { overview: 'cards', grievances: 'table', skills: 'table', compliance: 'table', disputes: 'table' };
@@ -27,16 +26,17 @@ const session = await bootApp('admin');
 
 if (session) {
   const main = document.getElementById('main');
+  const nav = document.getElementById('nav');
   let renderToken = 0;
-  // Tables become stacked "label: value" cards on phones: label the cells whenever a screen draws or redraws one.
-  new MutationObserver(() => labelCells(main)).observe(main, { childList: true, subtree: true });
 
   const show = async (name) => {
     renderToken += 1;
     const token = renderToken;
-    paintSidenav(document.querySelector('#sidenav ul'), [NAV], name);
-    paintTabbar(document.querySelector('#tabbar ul'), NAV, name);
-    document.querySelector('#tabbar [aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    nav.replaceChildren(
+      ...SECTIONS.map((s) =>
+        h('li', {}, h('a', { href: `#${s.id}`, 'aria-current': s.id === name ? 'page' : null }, icon(s.icon), h('span', { text: t(`nav.${s.id}`) }))),
+      ),
+    );
     main.replaceChildren(skeleton(SKELETONS[name]));
     let node;
     try {

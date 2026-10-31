@@ -2,9 +2,7 @@ import { ApiError, api } from './api.js';
 import './pwa.js';
 import { applyTranslations, initI18n, mountLanguageSwitcher, setSector } from './i18n.js';
 import { createTour, tourStorage } from './tour.js';
-import { mountThemeToggle } from './chrome.js';
 import { toast } from './dom.js';
-import { icon } from './icons.js';
 import { t } from './i18n.js';
 
 const SESSION_COPY = 'fairshift.session.worker';
@@ -37,14 +35,6 @@ const sessionCopy = {
   },
 };
 
-/** The top bar's fixed controls: the theme toggle, the language selector and the icons inside static buttons. */
-export function mountTopbar() {
-  mountLanguageSwitcher(document.getElementById('lang'));
-  const toggle = document.getElementById('theme-toggle');
-  if (toggle) mountThemeToggle(toggle);
-  for (const slot of document.querySelectorAll('[data-icon]')) slot.replaceChildren(icon(slot.dataset.icon));
-}
-
 /**
  * Common start-up for the worker and employer apps: language, session check, logout button.
  * Returns the session, or null after redirecting to the sign-in choices on the landing page.
@@ -52,7 +42,7 @@ export function mountTopbar() {
  */
 export async function bootApp(role) {
   await initI18n();
-  mountTopbar();
+  mountLanguageSwitcher(document.getElementById('lang'));
   let session = null;
   try {
     session = await api('/me');
@@ -69,8 +59,7 @@ export async function bootApp(role) {
   }
   setSector(session.org.sector);
   applyTranslations();
-  const orgName = document.getElementById('org-name');
-  if (orgName) orgName.textContent = session.org.name;
+  document.getElementById('org-name').textContent = session.org.name;
   document.getElementById('logout').addEventListener('click', async () => {
     try {
       await api('/logout', { method: 'POST' });
