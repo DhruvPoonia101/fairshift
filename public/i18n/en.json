@@ -426,7 +426,6 @@
   "err.dispute_already_decided": "This dispute has already been decided.",
   "err.record_changed": "The record changed after the dispute was filed.",
   "nav.disputes": "Attendance disputes",
-  "home.contestLink": "Something wrong with a day? Contest it",
   "records.title": "My attendance",
   "records.intro": "If a day is recorded wrongly, you can contest it for the last {days} days.",
   "records.contest": "Contest this day",
@@ -545,8 +544,6 @@
   "demo.resetDone": "Demo data was reset.",
   "err.demo_mode_required": "Demo reset is only available in demo mode.",
 
-  "tab.me": "Me",
-  "me.title": "Me",
   "me.display": "Display settings",
   "me.textSize": "Text size",
   "me.textSizeHint": "Makes all text bigger on this phone.",
@@ -556,8 +553,6 @@
   "me.contrast": "High contrast",
   "me.contrastHelp": "Stronger colours and borders so text is easier to read.",
   "me.saved": "Saved on this phone.",
-  "me.more": "More",
-  "me.records": "My attendance and disputes",
   "state.errorTitle": "We could not load this",
   "state.errorHint": "Check your connection, then try again.",
   "empty.records.title": "No attendance yet",
@@ -669,5 +664,23 @@
   "err.tracking_code_taken": "That tracking code is already used. Make a new report.",
   "err.check_out_before_check_in": "The check-out time is before the check-in.",
 
-  "outbox.titleSent": "Sent from this phone"
+  "outbox.titleSent": "Sent from this phone",
+
+  "tab.disputes": "Disputes",
+  "tab.settings": "Settings",
+  "worker.quick": "Quick links",
+  "theme.toLight": "Switch to light theme",
+  "theme.toDark": "Switch to dark theme",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.system": "System",
+  "theme.label": "Colour theme",
+  "theme.hint": "System follows your phone. Light and dark are remembered on this phone.",
+  "settings.title": "Settings",
+  "home.today": "Today",
+  "home.quick": "Quick actions",
+  "rest.level.amber": "Take care",
+  "rest.level.red": "Rest needed",
+
+  "landing.eyebrow": "Decent work for everyone"
 }

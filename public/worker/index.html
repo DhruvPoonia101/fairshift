@@ -3,27 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b5cad">
+  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B0E12" media="(prefers-color-scheme: dark)">
   <title data-i18n="worker.title">FairShift - Worker</title>
   <script src="/shared/prefs-boot.js"></script>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/shared/base.css">
   <link rel="stylesheet" href="/worker/worker.css">
   <link rel="manifest" href="/manifest.webmanifest">
 </head>
-<body>
+<body class="has-tabbar">
   <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
-  <header class="site-header">
-    <div class="container">
-      <a class="brand" href="/">FairShift</a>
-      <div class="row">
-        <span id="org-name" class="muted"></span>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#home" aria-label="FairShift"><img src="/logo.svg" alt="" width="32" height="32"><span class="brand-name">FairShift</span></a>
+      <div class="topbar-actions">
+        <nav id="toplinks" class="topbar-actions" aria-label="Quick links" data-i18n-attr="aria-label:worker.quick"></nav>
+        <button id="theme-toggle" class="icon-btn" type="button"></button>
         <div class="lang" id="lang"></div>
-        <button id="logout" class="btn" type="button" data-i18n="common.logout">Log out</button>
+        <button id="logout" class="icon-btn no-phone" type="button" data-i18n-attr="aria-label:common.logout"><span data-icon="logout"></span><span class="icon-btn-label" data-i18n="common.logout">Log out</span></button>
       </div>
     </div>
   </header>
-  <div class="container"><div id="outbox-banner" class="outbox-banner" role="status" aria-live="polite" hidden></div></div>
-  <main id="main" class="container" tabindex="-1"></main>
+  <nav class="sidenav" id="sidenav" aria-label="Main menu" data-i18n-attr="aria-label:worker.menu"><ul></ul></nav>
+  <div class="app-body">
+    <div class="container narrow"><div id="outbox-banner" class="outbox-banner" role="status" aria-live="polite" hidden></div></div>
+    <main id="main" class="container narrow" tabindex="-1"></main>
+  </div>
   <nav class="tabbar" id="tabbar" aria-label="Main menu" data-i18n-attr="aria-label:worker.menu"><ul></ul></nav>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <noscript><p class="container">FairShift needs JavaScript. / कृपया JavaScript चालू करें।</p></noscript>

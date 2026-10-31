@@ -1,5 +1,6 @@
 import { api } from './shared/api.js';
 import './shared/pwa.js';
+import { mountThemeToggle } from './shared/chrome.js';
 import { busy, field, fill, h, iconButton, showError } from './shared/dom.js';
 import { icon } from './shared/icons.js';
 import { errorState } from './shared/states.js';
@@ -17,6 +18,7 @@ const DESTINATION = { worker: '/worker/', admin: '/admin/' };
 
 await initI18n();
 mountLanguageSwitcher(document.getElementById('lang'));
+mountThemeToggle(document.getElementById('theme-toggle'));
 
 // The sectors come from the server's sector config, so a new sector appears here with no code change.
 let configError = null;
