@@ -72,7 +72,30 @@ export const SEVERITIES = Object.freeze(['low', 'medium', 'high']);
 export const TRACKING_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const TRACKING_CODE_LENGTH = 10;
 
-export const PASSPORT_TYPES = Object.freeze(['training', 'certification', 'experience']);
+/**
+ * Anonymous tracking codes are made on the worker's phone (crypto.getRandomValues), so the queue can show
+ * the code before anything reaches the server. 32 symbols x 16 characters = 80 bits.
+ * public/shared/tracking-code.js holds the same alphabet; tests/offline-capture.test.js keeps them equal.
+ */
+export const ANON_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const ANON_CODE_LENGTH = 16;
+/** A random 16-symbol code has at least ~10 distinct symbols; fewer than this is a typed or forged code. */
+export const ANON_CODE_MIN_DISTINCT = 6;
+
+/** Work done without a signal is sent later. These are the rules for believing the time on the phone. */
+export const OFFLINE = Object.freeze({
+  /** A captured time older than this is refused: it cannot be checked any more. */
+  MAX_CAPTURE_AGE_MS: 48 * 60 * 60_000,
+  /** Phone clocks differ a little from ours; this much "in the future" is read as "now". */
+  CLOCK_SKEW_TOLERANCE_MS: 2 * 60_000,
+  IDEMPOTENCY_KEY_PATTERN: /^[A-Za-z0-9_-]{22,64}$/,
+  /** The anonymous-submission token is not tied to a person; it only says "a worker of this organisation". */
+  ANON_TOKEN_TTL_SECONDS: 7 * 24 * 60 * 60,
+  /** Tokens are issued with a time rounded down to the hour, so two workers' tokens cannot be told apart. */
+  ANON_TOKEN_BUCKET_SECONDS: 60 * 60,
+});
+
+export const PASSPORT_TYPES =Object.freeze(['training', 'certification', 'experience']);
 export const PASSPORT_EXPIRY_WARNING_DAYS = 30;
 
 export const CHECK_IN_METHODS = Object.freeze(['qr', 'code', 'button']);

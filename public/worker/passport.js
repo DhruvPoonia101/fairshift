@@ -4,6 +4,7 @@ import { busy, cancelButton, field, h, iconButton, openDialog, showError, toast 
 import { dayLabel } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { emptyState } from '../shared/states.js';
 
 const TYPES = ['training', 'certification', 'experience'];
 
@@ -94,7 +95,9 @@ export async function renderPassport(session, rerender) {
     ...attention.map((e) =>
       h('div', { class: 'banner', role: 'note' }, icon('alert'), h('p', { text: t(e.expiry === 'expired' ? 'passport.expiredWarn' : 'passport.expiringWarn', { title: e.title, date: dayLabel(e.expiresOn, false) }) })),
     ),
-    h('ul', { class: 'stack' }, ...entries.map(entryCard)),
+    entries.length === 0
+      ? emptyState({ iconName: 'badge', title: t('empty.passport.title'), text: t('empty.passport.text') })
+      : h('ul', { class: 'stack' }, ...entries.map(entryCard)),
     iconButton('plus', t('passport.add'), { class: 'btn btn-primary btn-lg btn-block', onclick: () => openAddDialog(rerender) }),
     sharePanel(shareToken, rerender),
   );

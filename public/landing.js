@@ -1,7 +1,9 @@
 import { api } from './shared/api.js';
 import './shared/pwa.js';
-import { busy, field, h, iconButton, showError } from './shared/dom.js';
+import { mountThemeToggle } from './shared/chrome.js';
+import { busy, field, fill, h, iconButton, showError } from './shared/dom.js';
 import { icon } from './shared/icons.js';
+import { errorState } from './shared/states.js';
 import { applyTranslations, initI18n, mountLanguageSwitcher, t } from './shared/i18n.js';
 
 const FEATURES = [
@@ -16,9 +18,14 @@ const DESTINATION = { worker: '/worker/', admin: '/admin/' };
 
 await initI18n();
 mountLanguageSwitcher(document.getElementById('lang'));
+mountThemeToggle(document.getElementById('theme-toggle'));
 
 // The sectors come from the server's sector config, so a new sector appears here with no code change.
-const config = await api('/config').catch(() => ({ demoMode: false, adminLogin: false, sectors: [] }));
+let configError = null;
+const config = await api('/config').catch((error) => {
+  configError = error;
+  return { demoMode: false, adminLogin: false, sectors: [] };
+});
 const panels = { worker: document.getElementById('panel-worker'), admin: document.getElementById('panel-admin') };
 const buttons = { worker: document.getElementById('pick-worker'), admin: document.getElementById('pick-admin') };
 
@@ -67,11 +74,16 @@ function adminPasswordForm() {
 }
 
 function paintPanels() {
+  if (configError) {
+    for (const panel of Object.values(panels)) panel.replaceChildren(errorState(configError, () => location.reload()));
+    return;
+  }
   panels.worker.replaceChildren(
     h('h2', { text: t('landing.workerTitle') }),
     config.demoMode ? demoButtons('worker') : h('p', { class: 'muted', text: t('landing.workerOtp') }),
   );
-  panels.admin.replaceChildren(
+  fill(
+    panels.admin,
     h('h2', { text: t('landing.employerTitle') }),
     config.demoMode ? demoButtons('admin') : null,
     config.adminLogin ? adminPasswordForm() : null,
@@ -88,14 +100,27 @@ function toggle(kind) {
   if (!panels[kind].hidden) panels[kind].querySelector('button, input, select')?.focus();
 }
 
+/** The judge tour needs the demo accounts, so its button only appears in demo mode. */
+function paintTourButton() {
+  // Nothing at all when it is not demo mode, and also when /api/config could not be loaded (config is then the empty default).
+  fill(
+    document.getElementById('tour-slot'),
+    config.demoMode
+      ? iconButton('compass', t('tour.button'), { class: 'btn', onclick: () => import('./shared/tour-ui.js').then((tourUi) => tourUi.openTourIntro()) })
+      : null,
+  );
+}
+
 function paintContent() {
   paintPanels();
+  paintTourButton();
   document.getElementById('features').replaceChildren(
     ...FEATURES.map(([iconName, key]) =>
       h('li', { class: 'card feature' }, icon(iconName), h('h3', { text: t(`landing.feature.${key}.title`) }), h('p', { class: 'muted', text: t(`landing.feature.${key}.text`) })),
     ),
   );
   document.getElementById('industries').replaceChildren(
+    ...(configError ? [errorState(configError, () => location.reload())] : []),
     ...config.sectors.map(({ id, icon: sectorIcon }) =>
       h(
         'article',

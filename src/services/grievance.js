@@ -1,5 +1,8 @@
 import { createHmac } from 'node:crypto';
 import {
+  ANON_CODE_ALPHABET,
+  ANON_CODE_LENGTH,
+  ANON_CODE_MIN_DISTINCT,
   TRACKING_CODE_ALPHABET,
   TRACKING_CODE_LENGTH,
 } from '../config/constants.js';
@@ -47,6 +50,13 @@ export function suggestSeverity(text, category) {
 
 const normaliseCode = (code) => String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+const CLIENT_CODE_PATTERN = new RegExp(`^[${ANON_CODE_ALPHABET}]{${ANON_CODE_LENGTH}}$`);
+
+/** A code made on the phone must be the right shape and not obviously typed (the server cannot see how it was made). */
+export function isValidClientCode(code) {
+  return typeof code === 'string' && CLIENT_CODE_PATTERN.test(code) && new Set(code).size >= ANON_CODE_MIN_DISTINCT;
+}
+
 /** Fields a worker or employer may see; never includes tracking data. */
 function present(g) {
   return {
@@ -58,6 +68,7 @@ function present(g) {
     source: g.source,
     month: g.month ?? null,
     anonymous: g.anonymous,
+    recordedOffline: Boolean(g.recordedOffline),
     createdAt: g.createdAt,
     updatedAt: g.updatedAt,
     resolutionNote: g.resolutionNote,
@@ -78,14 +89,20 @@ export function createGrievanceService({ store, clock, secret }) {
     /**
      * Files a grievance or hazard report. An anonymous report stores NO worker id at all;
      * its time is rounded to the day and the worker gets a random tracking code instead.
+     *
+     * An anonymous report may bring its own tracking code, made on the phone (so it can be shown before
+     * the report is sent). The server checks the shape and that nobody has it already; it never learns who made it.
+     * `capture` (lib/capture.js) is set when the report was made without a signal. `id` is stable per retry.
+     * `user` is null for an anonymous submission that carries no sign-in at all.
      * @returns {Promise<{grievance: object, trackingCode?: string}>}
      */
-    async create(user, org, { category, text, anonymous, source = 'manual', month }) {
+    async create(user, org, { category, text, anonymous, source = 'manual', month, trackingCode: clientCode }, capture, id) {
       const categoryDef = findCategory(org.sector, category);
       if (!categoryDef) throw unprocessable('invalid_category', 'Unknown category.');
       const now = clock.now();
+      const seen = capture ?? { capturedAt: now, receivedAt: now, recordedOffline: false };
       const base = {
-        id: newId('gr'),
+        id: id ?? newId('gr'),
         orgId: org.id,
         category,
         text,
@@ -98,19 +115,35 @@ export function createGrievanceService({ store, clock, secret }) {
         updatedAt: now,
       };
       if (anonymous) {
-        const trackingCode = randomCode(TRACKING_CODE_ALPHABET, TRACKING_CODE_LENGTH);
+        if (clientCode !== undefined && !isValidClientCode(clientCode)) {
+          throw unprocessable('invalid_tracking_code', 'That tracking code is not valid.');
+        }
+        const trackingCode = clientCode ?? randomCode(TRACKING_CODE_ALPHABET, TRACKING_CODE_LENGTH);
+        const trackingHash = hashCode(trackingCode);
+        if (clientCode !== undefined) {
+          const taken = await store.grievances.findBy('trackingHash', trackingHash);
+          if (taken && taken.id !== base.id) throw conflict('tracking_code_taken', 'That tracking code is already in use.');
+        }
+        // Nothing here points at a person: no worker id, and only the day (not the time) of the report.
         const record = {
           ...base,
           source: 'manual',
           month: null,
-          createdAt: dayStartMs(dayKey(now)),
-          trackingHash: hashCode(trackingCode),
+          createdAt: dayStartMs(dayKey(seen.capturedAt)),
+          trackingHash,
+          ...(seen.recordedOffline ? { recordedOffline: true } : {}),
         };
         await store.grievances.insert(record);
+        if (clientCode !== undefined) return { grievance: present(record) };
         const shown = `${trackingCode.slice(0, TRACKING_CODE_GROUP)}-${trackingCode.slice(TRACKING_CODE_GROUP)}`;
         return { grievance: present(record), trackingCode: shown };
       }
-      const record = { ...base, workerId: user.id, createdAt: now };
+      const record = {
+        ...base,
+        workerId: user.id,
+        createdAt: seen.capturedAt,
+        ...(seen.recordedOffline ? { recordedOffline: true, capturedAt: seen.capturedAt, receivedAt: seen.receivedAt } : {}),
+      };
       await store.grievances.insert(record);
       return { grievance: present(record) };
     },

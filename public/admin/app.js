@@ -1,7 +1,7 @@
-import { errorMessage, h, iconButton } from '../shared/dom.js';
-import { icon } from '../shared/icons.js';
-import { t } from '../shared/i18n.js';
+import { paintSidenav, paintTabbar } from '../shared/chrome.js';
+import { labelCells } from '../shared/dom.js';
 import { bootApp, startRouter } from '../shared/shell.js';
+import { errorState, skeleton } from '../shared/states.js';
 
 // Each section is imported when it is first opened, so the page only downloads what it shows.
 const section = (file, name) => () => import(file).then((module) => module[name]);
@@ -17,36 +17,33 @@ const SECTIONS = [
   { id: 'compliance', icon: 'scale', load: section('./compliance.js', 'renderCompliance') },
   { id: 'disputes', icon: 'calendar', load: section('./disputes.js', 'renderDisputes') },
 ];
+// The same list is the sidebar (900px and up) and a scrollable bottom bar (phones).
+const NAV = SECTIONS.map(({ id, icon }) => ({ id, icon, labelKey: `nav.${id}` }));
 const VIEWS = Object.fromEntries(SECTIONS.map((s) => [s.id, s.load]));
+// Placeholder shapes that roughly match each section, so the page does not jump when it arrives.
+const SKELETONS = { overview: 'cards', grievances: 'table', skills: 'table', compliance: 'table', disputes: 'table' };
 
 const session = await bootApp('admin');
 
 if (session) {
   const main = document.getElementById('main');
-  const nav = document.getElementById('nav');
   let renderToken = 0;
+  // Tables become stacked "label: value" cards on phones: label the cells whenever a screen draws or redraws one.
+  new MutationObserver(() => labelCells(main)).observe(main, { childList: true, subtree: true });
 
   const show = async (name) => {
     renderToken += 1;
     const token = renderToken;
-    nav.replaceChildren(
-      ...SECTIONS.map((s) =>
-        h('li', {}, h('a', { href: `#${s.id}`, 'aria-current': s.id === name ? 'page' : null }, icon(s.icon), h('span', { text: t(`nav.${s.id}`) }))),
-      ),
-    );
-    main.replaceChildren(h('p', { class: 'muted', role: 'status', text: t('common.loading') }));
+    paintSidenav(document.querySelector('#sidenav ul'), [NAV], name);
+    paintTabbar(document.querySelector('#tabbar ul'), NAV, name);
+    document.querySelector('#tabbar [aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    main.replaceChildren(skeleton(SKELETONS[name]));
     let node;
     try {
       const render = await VIEWS[name]();
       node = await render(session, () => show(name));
     } catch (error) {
-      // Show what went wrong and let the user retry in place, with no full reload.
-      node = h(
-        'div',
-        { class: 'stack' },
-        h('div', { class: 'banner', role: 'alert' }, icon('alert'), h('p', { text: errorMessage(error) })),
-        iconButton('trend', t('common.retry'), { class: 'btn btn-primary', onclick: () => show(name) }),
-      );
+      node = errorState(error, () => show(name)); // what went wrong, and a button to retry in place
     }
     if (token !== renderToken) return;
     main.replaceChildren(node);

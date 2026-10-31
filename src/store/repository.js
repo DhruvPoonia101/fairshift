@@ -35,6 +35,7 @@ export const COLLECTION_NAMES = Object.freeze([
   'payments',
   'disputes',
   'audit',
+  'idempotency',
 ]);
 
 export const COLLECTION_METHODS = Object.freeze(['insert', 'get', 'update', 'query', 'findBy', 'deleteByOrg']);

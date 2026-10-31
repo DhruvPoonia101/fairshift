@@ -150,19 +150,24 @@ export function createDisputeService({ store, clock, audit, attendance, payroll 
           siteId: s.siteId,
           site: siteNames.get(s.siteId) ?? '',
           autoClosed: Boolean(s.autoClosed),
+          recordedOffline: Boolean(s.recordedOffline),
           corrected: Boolean(s.correctedBy),
           openDisputeId: disputes.find((d) => d.shiftId === s.id && isOpen(d))?.id ?? null,
         }));
       return { windowDays, records, sites: sites.map(({ id, name }) => ({ id, name })) };
     },
 
-    async submit(worker, input) {
+    /**
+     * `capture` (see lib/capture.js) is set for a dispute made without a signal: the window is judged on the
+     * day the worker filed it, so waiting for a signal cannot make a dispute too late. `id` is stable per retry.
+     */
+    async submit(worker, input, capture, id) {
       const { orgId } = worker;
       const now = clock.now();
       const shift = await store.shifts.get(orgId, input.shiftId);
       if (!shift || shift.workerId !== worker.id) throw notFound('Record not found.');
       const windowDays = await windowDaysFor(orgId);
-      if (dayKey(shift.checkIn) < addDays(dayKey(now), -windowDays)) {
+      if (dayKey(shift.checkIn) < addDays(dayKey(capture?.capturedAt ?? now), -windowDays)) {
         throw unprocessable('outside_dispute_window', `Only the last ${windowDays} days can be disputed.`);
       }
       const existing = await store.disputes.query(orgId, { where: { shiftId: shift.id } });
@@ -170,8 +175,11 @@ export function createDisputeService({ store, clock, audit, attendance, payroll 
 
       const sites = await store.sites.query(orgId);
       const claimed = checkClaim({ category: input.category, shift, input, siteIds: sites.map((s) => s.id), now });
+      const offline = capture?.recordedOffline
+        ? { recordedOffline: true, capturedAt: capture.capturedAt, receivedAt: capture.receivedAt }
+        : {};
       const dispute = {
-        id: newId('dp'),
+        id: id ?? newId('dp'),
         orgId,
         workerId: worker.id,
         shiftId: shift.id,
@@ -185,6 +193,7 @@ export function createDisputeService({ store, clock, audit, attendance, payroll 
         decidedAt: null,
         decidedBy: null,
         decisionNote: '',
+        ...offline,
       };
       await store.disputes.insert(dispute);
       await audit.record({
@@ -198,7 +207,7 @@ export function createDisputeService({ store, clock, audit, attendance, payroll 
         before: dispute.original,
         after: claimed,
         note: dispute.note,
-        details: { category: dispute.category },
+        details: { category: dispute.category, ...(offline.recordedOffline ? { recordedOffline: true } : {}) },
       });
       return present(dispute);
     },
@@ -215,12 +224,14 @@ export function createDisputeService({ store, clock, audit, attendance, payroll 
 
     /** The employer's queue: open disputes first (oldest first), then decided ones (newest first). */
     async listForOrg(orgId) {
-      const [disputes, workers, sites, entries] = await Promise.all([
+      const [disputes, workers, sites, entries, shifts] = await Promise.all([
         store.disputes.query(orgId),
         store.workers.query(orgId),
         store.sites.query(orgId),
         store.audit.query(orgId),
+        store.shifts.query(orgId, { where: { recordedOffline: true } }),
       ]);
+      const offlineShifts = new Set(shifts.map((s) => s.id));
       const names = new Map(workers.map((w) => [w.id, { name: w.name, role: w.role }]));
       const siteNames = new Map(sites.map((s) => [s.id, s.name]));
       const ordered = [
@@ -231,6 +242,7 @@ export function createDisputeService({ store, clock, audit, attendance, payroll 
         ordered.map(async (d) => ({
           ...(await present(d, entries.filter((e) => e.workerId === d.workerId).sort(compareEntries))),
           worker: names.get(d.workerId) ?? null,
+          shiftRecordedOffline: offlineShifts.has(d.shiftId),
           sites: { original: siteNames.get(d.original.siteId) ?? '', claimed: siteNames.get(d.claimed?.siteId) ?? '' },
         })),
       );

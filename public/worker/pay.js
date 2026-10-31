@@ -4,6 +4,7 @@ import { istMonths, monthLabel } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
 import { renderPayslip } from '../shared/payslip.js';
+import { errorState, skeleton } from '../shared/states.js';
 import { stopSpeaking } from '../shared/voice.js';
 
 let selectedMonth = null;
@@ -45,13 +46,12 @@ export async function renderPay(session) {
   async function load() {
     stopSpeaking();
     for (const button of toggles.children) button.setAttribute('aria-pressed', String(button.dataset.month === selectedMonth));
-    box.replaceChildren(h('p', { class: 'muted', text: t('common.loading') }));
+    box.replaceChildren(skeleton('list'));
     try {
       const slip = await api(`/workers/${session.user.id}/payslips/${selectedMonth}`);
       box.replaceChildren(renderPayslip(slip, { onDispute: () => openDispute(selectedMonth) }));
     } catch (error) {
-      showError(error);
-      box.replaceChildren(h('p', { class: 'muted', text: t('err.generic') }));
+      box.replaceChildren(errorState(error, load));
     }
   }
 

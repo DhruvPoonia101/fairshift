@@ -1,8 +1,9 @@
 import { api } from '../shared/api.js';
-import { showError, field, h } from '../shared/dom.js';
+import { field, h } from '../shared/dom.js';
 import { istMonths, monthLabel } from '../shared/format.js';
 import { t } from '../shared/i18n.js';
 import { renderPayslip } from '../shared/payslip.js';
+import { emptyState, errorState, skeleton } from '../shared/states.js';
 
 let selectedWorker = null;
 let selectedMonth = null;
@@ -10,6 +11,9 @@ let selectedMonth = null;
 /** Payroll check: the same plain-words payslip the worker sees, so disputes can be settled on facts. */
 export async function renderPayroll() {
   const { workers } = await api('/admin/workers');
+  if (workers.length === 0) {
+    return h('div', { class: 'stack' }, h('h1', { text: t('payroll.title') }), emptyState({ iconName: 'users', title: t('empty.workers.title'), text: t('empty.workers.text') }));
+  }
   const { current, previous } = istMonths();
   selectedWorker ??= workers[0]?.id;
   selectedMonth ??= current;
@@ -21,10 +25,11 @@ export async function renderPayroll() {
   async function load() {
     selectedWorker = worker.value;
     selectedMonth = month.value;
+    box.replaceChildren(skeleton('list'));
     try {
       box.replaceChildren(renderPayslip(await api(`/workers/${selectedWorker}/payslips/${selectedMonth}`)));
     } catch (error) {
-      showError(error);
+      box.replaceChildren(errorState(error, load));
     }
   }
   worker.addEventListener('change', load);

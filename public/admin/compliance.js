@@ -4,6 +4,7 @@ import { field, h } from '../shared/dom.js';
 import { istMonths, money, monthLabel } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { emptyState } from '../shared/states.js';
 
 let selected = 'previous';
 
@@ -49,7 +50,7 @@ export async function renderCompliance(session, rerender) {
     field(t('complianceAdmin.month'), picker),
     h('p', { role: 'status', text: t('complianceAdmin.summary', report.summary) }),
     report.items.length === 0
-      ? h('p', { class: 'muted', text: t('complianceAdmin.none') })
+      ? emptyState({ iconName: 'check', title: t('empty.compliance.title'), text: t('empty.compliance.text') })
       : h('div', { class: 'card table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ...heads)), h('tbody', {}, ...report.items.map(row)))),
   );
 }

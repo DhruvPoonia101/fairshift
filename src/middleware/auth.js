@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { ADMIN_ROLE, WORKER_ROLE } from '../config/constants.js';
+import { ADMIN_ROLE, OFFLINE, WORKER_ROLE } from '../config/constants.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
 
 export const SESSION_COOKIES = Object.freeze({ [WORKER_ROLE]: 'fs_worker', [ADMIN_ROLE]: 'fs_admin' });
@@ -99,3 +99,38 @@ export const requireRole = (...roles) => (req, res, next) => {
 
 export const requireWorker = requireRole(WORKER_ROLE);
 export const requireAdmin = requireRole(ADMIN_ROLE);
+
+const ANON_PURPOSE = 'anon_submit';
+
+/**
+ * Anonymous submissions (reports and feedback sent without a name) carry no sign-in at all, so the
+ * request itself cannot point at a person. They carry this token instead: it says only "a worker of this
+ * organisation" (claims: purpose, org). It has no subject, and it is issued with a time rounded down to the
+ * hour, so every worker of an organisation gets the same token within the same hour. Whoever holds it can
+ * file anonymous items for that one organisation, which is exactly what any of its workers could already do.
+ * @param {{ secret: string, clock: { now: () => number } }} options
+ */
+export function createAnonTokens({ secret, clock }) {
+  const nowSeconds = () => Math.floor(clock.now() / 1000);
+  return {
+    issue(orgId) {
+      const iat = nowSeconds() - (nowSeconds() % OFFLINE.ANON_TOKEN_BUCKET_SECONDS);
+      const exp = iat + OFFLINE.ANON_TOKEN_TTL_SECONDS;
+      return { token: jwt.sign({ purpose: ANON_PURPOSE, org: orgId, iat, exp }, secret, { algorithm: ALGORITHM }), expiresAt: exp * 1000 };
+    },
+
+    /** Sets req.anon = { orgId } from `Authorization: Bearer <token>`, or answers 401. Cookies are ignored. */
+    require(req, res, next) {
+      const match = /^Bearer ([\w-]+\.[\w-]+\.[\w-]+)$/.exec(req.get('authorization') ?? '');
+      if (!match) return next(unauthorized());
+      try {
+        const claims = jwt.verify(match[1], secret, { algorithms: [ALGORITHM], clockTimestamp: nowSeconds() });
+        if (claims.purpose !== ANON_PURPOSE || typeof claims.org !== 'string') return next(unauthorized());
+        req.anon = { orgId: claims.org };
+        return next();
+      } catch {
+        return next(unauthorized());
+      }
+    },
+  };
+}

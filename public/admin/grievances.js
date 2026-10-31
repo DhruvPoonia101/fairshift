@@ -4,6 +4,7 @@ import { busy, cancelButton, chip, field, h, iconButton, openDialog, showError, 
 import { dateIst, dateTimeIst } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { emptyState } from '../shared/states.js';
 
 const NEXT = { open: ['open', 'in_review', 'resolved'], in_review: ['in_review', 'resolved'], resolved: [] };
 let filter = 'unresolved';
@@ -47,7 +48,7 @@ function row(item, onSaved) {
     h('td', { text: item.anonymous ? dateIst(item.createdAt) : dateTimeIst(item.createdAt) }),
     h('td', {}, item.anonymous ? chip('info', 'eyeOff', t('grievances.anonymous')) : h('span', { text: item.worker?.name ?? '' })),
     h('td', {}, h('span', { class: 'row' }, icon(item.category === 'pay' ? 'wallet' : 'alert'), t(`cat.${item.category}`))),
-    h('td', { class: 'cell-wide' }, h('p', { text: item.text }), item.resolutionNote ? h('p', { class: 'muted', text: `${t('report.note')}: ${item.resolutionNote}` }) : null),
+    h('td', { class: 'cell-wide' }, h('p', { text: item.text }), item.recordedOffline ? chip('info', 'wifiOff', t('offline.badge')) : null, item.resolutionNote ? h('p', { class: 'muted', text: `${t('report.note')}: ${item.resolutionNote}` }) : null),
     h('td', {}, severityChip(item.severity)),
     h('td', {}, statusChip(item.status)),
     h('td', {}, item.status === 'resolved' ? null : iconButton('check', t('grievances.update'), { onclick: () => openUpdateDialog(item, onSaved) })),
@@ -71,7 +72,7 @@ export async function renderGrievances(session, rerender) {
     h('div', { class: 'banner ok' }, icon('lock'), h('p', { text: t('grievances.privacy') })),
     field(t('grievances.show'), select),
     visible.length === 0
-      ? h('p', { class: 'muted', text: t('grievances.none') })
+      ? emptyState({ iconName: 'check', title: t('empty.grievances.title'), text: t('empty.grievances.text') })
       : h('div', { class: 'card table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ...heads)), h('tbody', {}, ...visible.map((g) => row(g, rerender))))),
   );
 }

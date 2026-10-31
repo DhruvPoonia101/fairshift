@@ -3,6 +3,7 @@ import { chip, h } from '../shared/dom.js';
 import { hoursMinutes } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { emptyState } from '../shared/states.js';
 
 const LEVEL = { red: ['danger', 'alert'], amber: ['warn', 'clock'] };
 const BAND = { high: ['danger', 'alert'], medium: ['warn', 'info'] };
@@ -38,7 +39,6 @@ function attritionItem(person) {
 /** Fatigue alerts and the explainable "who needs a supportive check-in" list. */
 export async function renderPeople() {
   const d = await api('/admin/dashboard');
-  const empty = (key) => h('p', { class: 'muted', text: t(key) });
   return h(
     'div',
     { class: 'stack' },
@@ -48,14 +48,14 @@ export async function renderPeople() {
       { class: 'stack', 'aria-labelledby': 'fatigue-title' },
       h('h2', { id: 'fatigue-title', class: 'row' }, icon('moon'), t('people.fatigueTitle')),
       h('p', { class: 'muted', text: t('people.fatigueIntro') }),
-      d.fatigue.length > 0 ? h('ul', { class: 'grid' }, ...d.fatigue.map(fatigueItem)) : empty('people.fatigueNone'),
+      d.fatigue.length > 0 ? h('ul', { class: 'grid' }, ...d.fatigue.map(fatigueItem)) : emptyState({ iconName: 'moon', title: t('empty.fatigue.title'), text: t('empty.fatigue.text') }),
     ),
     h(
       'section',
       { class: 'stack', 'aria-labelledby': 'risk-title' },
       h('h2', { id: 'risk-title', class: 'row' }, icon('trend'), t('people.riskTitle')),
       h('div', { class: 'banner ok' }, icon('shield'), h('p', { text: t('people.riskIntro') })),
-      d.attrition.length > 0 ? h('ul', { class: 'grid' }, ...d.attrition.map(attritionItem)) : empty('people.riskNone'),
+      d.attrition.length > 0 ? h('ul', { class: 'grid' }, ...d.attrition.map(attritionItem)) : emptyState({ iconName: 'check', title: t('empty.risk.title'), text: t('empty.risk.text') }),
     ),
   );
 }

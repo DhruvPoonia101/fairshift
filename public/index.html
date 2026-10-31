@@ -3,43 +3,53 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b5cad">
+  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B0E12" media="(prefers-color-scheme: dark)">
   <meta name="description" content="FairShift: clear pay, safe reporting and fair shifts for workers and employers.">
   <title data-i18n="landing.title">FairShift - Fair pay, safe work</title>
+  <script src="/shared/prefs-boot.js"></script>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/shared/base.css">
   <link rel="stylesheet" href="/landing.css">
   <link rel="manifest" href="/manifest.webmanifest">
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="common.skip">Skip to content</a>
-  <header class="site-header">
-    <div class="container">
-      <span class="brand">FairShift</span>
-      <div class="lang" id="lang"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="FairShift"><img src="/logo.svg" alt="" width="32" height="32"><span class="brand-name">FairShift</span></a>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="icon-btn" type="button"></button>
+        <div class="lang" id="lang"></div>
+      </div>
     </div>
   </header>
-  <main id="main" class="container stack" tabindex="-1">
+  <main id="main" class="container landing" tabindex="-1">
     <section class="hero stack" aria-labelledby="hero-title">
+      <p class="eyebrow" data-i18n="landing.eyebrow">Decent work for everyone</p>
       <h1 id="hero-title" data-i18n="landing.headline">Know your pay. Speak up safely. Work fair hours.</h1>
-      <p data-i18n="landing.sub">FairShift helps workers and employers in construction, colleges, hospitals and factories.</p>
+      <p class="lead" data-i18n="landing.sub">FairShift helps workers and employers in construction, colleges, hospitals and factories.</p>
       <div class="choices">
         <button type="button" class="btn btn-primary btn-lg" id="pick-worker" aria-expanded="false" aria-controls="panel-worker" data-role="worker"><span data-i18n="landing.worker">I am a worker</span></button>
         <button type="button" class="btn btn-lg" id="pick-admin" aria-expanded="false" aria-controls="panel-admin" data-role="admin"><span data-i18n="landing.employer">I am an employer</span></button>
       </div>
+      <div id="tour-slot" class="row"></div>
       <p id="need" class="banner" role="status" hidden></p>
       <section id="panel-worker" class="card stack" hidden aria-labelledby="pick-worker"></section>
       <section id="panel-admin" class="card stack" hidden aria-labelledby="pick-admin"></section>
     </section>
 
-    <section class="stack" aria-labelledby="feat-title">
-      <h2 id="feat-title" data-i18n="landing.featuresTitle">What FairShift does</h2>
-      <ul class="grid" id="features"></ul>
-    </section>
-
     <section class="stack" aria-labelledby="ind-title">
       <h2 id="ind-title" data-i18n="landing.industriesTitle">Three industries, one app</h2>
-      <div class="grid" id="industries"></div>
+      <div class="grid sectors" id="industries"><div class="skel skel-card" aria-hidden="true"></div><div class="skel skel-card" aria-hidden="true"></div><div class="skel skel-card" aria-hidden="true"></div></div>
       <p class="muted" data-i18n="landing.more">The same app can serve factories too: only the settings change, not the code.</p>
+    </section>
+
+    <section class="stack" aria-labelledby="feat-title">
+      <h2 id="feat-title" data-i18n="landing.featuresTitle">What FairShift does</h2>
+      <ul class="grid features" id="features"><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li></ul>
     </section>
   </main>
   <footer class="container muted foot"><p data-i18n="landing.footer">SDG 8: Decent work and economic growth. Prototype for Prompt Wars 2026 x SRM ACM.</p></footer>

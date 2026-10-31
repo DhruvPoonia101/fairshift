@@ -1,57 +1,50 @@
-import { errorMessage, h, iconButton } from '../shared/dom.js';
-import { icon } from '../shared/icons.js';
-import { t } from '../shared/i18n.js';
+import { paintSidenav, paintTabbar, paintTopLinks } from '../shared/chrome.js';
 import { bootApp, startRouter } from '../shared/shell.js';
+import { errorState, skeleton } from '../shared/states.js';
+import { EXTRAS, SIDEBAR_GROUPS, TABS, tabForScreen } from './nav.js';
 
 // Each screen is imported when it is first opened, so a low-end phone only downloads what it shows.
 const screen = (file, name) => () => import(file).then((module) => module[name]);
 
-const TABS = [
-  { id: 'home', icon: 'home', load: screen('./home.js', 'renderHome') },
-  { id: 'pay', icon: 'wallet', load: screen('./pay.js', 'renderPay') },
-  { id: 'report', icon: 'alert', load: screen('./report.js', 'renderReport') },
-  { id: 'feedback', icon: 'smile', load: screen('./feedback.js', 'renderFeedback') },
-  { id: 'passport', icon: 'badge', load: screen('./passport.js', 'renderPassport') },
-];
-// 'records' is reached from the Home tab, so it has no tab of its own.
-const VIEWS = { ...Object.fromEntries(TABS.map((tab) => [tab.id, tab.load])), records: screen('./records.js', 'renderRecords') };
+const VIEWS = {
+  home: screen('./home.js', 'renderHome'),
+  records: screen('./records.js', 'renderRecords'),
+  pay: screen('./pay.js', 'renderPay'),
+  report: screen('./report.js', 'renderReport'),
+  passport: screen('./passport.js', 'renderPassport'),
+  feedback: screen('./feedback.js', 'renderFeedback'),
+  settings: screen('./settings.js', 'renderSettings'),
+};
 
 const session = await bootApp('worker');
 
 if (session) {
+  // The outbox opens first, so every screen can hand it work and the banner is there from the start.
+  const [{ startOutbox }, { mountOutboxBanner }] = await Promise.all([import('../shared/outbox.js'), import('../shared/outbox-ui.js')]);
+  await startOutbox(session);
+  mountOutboxBanner();
+
   const main = document.getElementById('main');
-  const tabList = document.querySelector('#tabbar ul');
   let renderToken = 0;
 
-  const paintTabs = (active) => {
-    tabList.replaceChildren(
-      ...TABS.map((tab) =>
-        h(
-          'li',
-          {},
-          h('a', { href: `#${tab.id}`, 'aria-current': tab.id === active ? 'page' : null }, icon(tab.icon), h('span', { text: t(`tab.${tab.id}`) })),
-        ),
-      ),
-    );
+  // The same destinations three ways: left sidebar (900px and up), bottom bar and top-bar buttons (phones).
+  const paintTabs = (current) => {
+    paintSidenav(document.querySelector('#sidenav ul'), SIDEBAR_GROUPS, current);
+    paintTabbar(document.querySelector('#tabbar ul'), TABS, current);
+    paintTopLinks(document.getElementById('toplinks'), EXTRAS, current);
   };
 
   const show = async (name) => {
     renderToken += 1;
     const token = renderToken;
-    paintTabs(name === 'records' ? 'home' : name);
-    main.replaceChildren(h('p', { class: 'muted', role: 'status', text: t('common.loading') }));
+    paintTabs(tabForScreen(name));
+    main.replaceChildren(skeleton('list'));
     let node;
     try {
       const render = await VIEWS[name]();
       node = await render(session, () => show(name));
     } catch (error) {
-      // Show what went wrong and let the user retry in place, with no full reload.
-      node = h(
-        'div',
-        { class: 'stack' },
-        h('div', { class: 'banner', role: 'alert' }, icon('alert'), h('p', { text: errorMessage(error) })),
-        iconButton('trend', t('common.retry'), { class: 'btn btn-primary', onclick: () => show(name) }),
-      );
+      node = errorState(error, () => show(name)); // what went wrong, and a button to retry in place
     }
     if (token !== renderToken) return; // the user already moved on
     main.replaceChildren(node);

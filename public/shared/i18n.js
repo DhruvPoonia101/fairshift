@@ -1,10 +1,11 @@
 /** Tiny i18n: JSON dictionaries, {placeholders}, sector-specific terms, language persisted locally. */
 import { money, number } from './format.js';
+import { icon } from './icons.js';
 
 export const LANGUAGES = [
-  { code: 'en', label: 'English', locale: 'en-IN' },
-  { code: 'hi', label: 'हिन्दी', locale: 'hi-IN' },
-  { code: 'ta', label: 'தமிழ்', locale: 'ta-IN' },
+  { code: 'en', label: 'English', short: 'EN', locale: 'en-IN' },
+  { code: 'hi', label: 'हिन्दी', short: 'हिं', locale: 'hi-IN' },
+  { code: 'ta', label: 'தமிழ்', short: 'த', locale: 'ta-IN' },
 ];
 const STORAGE_KEY = 'fairshift.lang';
 
@@ -90,10 +91,10 @@ async function setLanguage(code) {
   document.dispatchEvent(new CustomEvent('langchange'));
 }
 
-/** Fills `container` with a labelled language <select>. */
-export function mountLanguageSwitcher(container) {
+/** Fills `container` with a labelled language <select>. A page may have more than one (top bar and Settings): give each its own id. */
+export function mountLanguageSwitcher(container, id = 'lang-select') {
   const select = document.createElement('select');
-  select.id = 'lang-select';
+  select.id = id;
   for (const l of LANGUAGES) {
     const option = document.createElement('option');
     option.value = l.code;
@@ -103,10 +104,24 @@ export function mountLanguageSwitcher(container) {
   }
   select.value = lang;
   select.addEventListener('change', () => setLanguage(select.value));
+  document.addEventListener('langchange', () => {
+    select.value = lang; // another switcher on the page changed it
+  });
   const label = document.createElement('label');
-  label.htmlFor = 'lang-select';
+  label.htmlFor = id;
   label.className = 'visually-hidden';
   label.dataset.i18n = 'common.language';
   label.textContent = t('common.language');
-  container.replaceChildren(label, select);
+  // On a phone the select is an invisible layer over a small globe + code, so it takes one 48px target
+  // (tapping still opens the native picker); from 600px the select itself is shown (see base.css).
+  const face = document.createElement('span');
+  face.className = 'lang-face';
+  face.setAttribute('aria-hidden', 'true');
+  const code = document.createElement('span');
+  code.textContent = currentLanguage().short;
+  document.addEventListener('langchange', () => {
+    code.textContent = currentLanguage().short;
+  });
+  face.append(icon('globe'), code);
+  container.replaceChildren(label, select, face);
 }

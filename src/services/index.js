@@ -3,6 +3,7 @@ import { createAuditService } from './audit.js';
 import { createDisputeService } from './disputes.js';
 import { createFeedbackService } from './feedback.js';
 import { createGrievanceService } from './grievance.js';
+import { createIdempotencyService } from './idempotency.js';
 import { createInsightsService } from './insights.js';
 import { createPassportService } from './passport.js';
 import { createPayrollService } from './payroll.js';
@@ -20,6 +21,7 @@ export function createServices({ store, clock, env, fetchImpl }) {
   const attendance = createAttendanceService({ store, clock, credentials, audit, skipButtonGeofence: env.demoMode });
   const payroll = createPayrollService({ store, clock });
   return {
+    idempotency: createIdempotencyService({ store, clock }),
     credentials,
     passport,
     feedback,

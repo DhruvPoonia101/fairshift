@@ -24,6 +24,36 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
+/**
+ * Replaces everything inside `parent` with `children`. Unlike the DOM's own replaceChildren, which turns a
+ * null, undefined or false argument into the TEXT "null" / "undefined" / "false", this skips them (as h() does),
+ * so `fill(slot, condition ? button : null)` shows nothing when the condition is false.
+ * @param {{ replaceChildren: (...nodes: (Node | string)[]) => void }} parent
+ * @param {...(Node | string | null | undefined | false)} children
+ */
+export function fill(parent, ...children) {
+  parent.replaceChildren(...children.flat().filter((child) => child !== null && child !== undefined && child !== false));
+}
+
+/**
+ * Makes tables readable on a phone: every cell gets the text of its column header as `data-label`, and the table
+ * gets the `responsive` class, so the CSS can show each row as a card of "label: value" lines (see base.css).
+ * Header-less tables, and cells beyond the last header, are left alone.
+ * @param {{ querySelectorAll: (selector: string) => Iterable<any> }} root
+ */
+export function labelCells(root) {
+  for (const table of root.querySelectorAll('table')) {
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    if (heads.length === 0) continue;
+    for (const row of table.querySelectorAll('tbody tr')) {
+      [...row.children].forEach((cell, index) => {
+        if (heads[index] !== undefined) cell.dataset.label = heads[index];
+      });
+    }
+    table.classList.add('responsive');
+  }
+}
+
 /** Button with a leading icon and a visible text label. */
 export function iconButton(iconName, label, props = {}) {
   const { class: cls = 'btn', ...rest } = props;

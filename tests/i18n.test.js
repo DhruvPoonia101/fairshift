@@ -9,6 +9,12 @@ import { AUDIT_ACTIONS } from '../src/services/audit.js';
 import { COMPLIANCE_REASON_KEYS, COMPLIANCE_STATUS } from '../src/services/compliance.js';
 import { COMPONENT_IDS } from '../src/services/decentWork.js';
 import { FATIGUE_RULES } from '../src/services/fatigue.js';
+import { TEXT_SIZES, THEMES } from '../public/shared/prefs.js';
+import { TOUR_STEPS } from '../public/shared/tour.js';
+import { DESTINATIONS } from '../public/worker/nav.js';
+import { STATUS, describeQueue } from '../public/shared/queue.js';
+import { specFor } from '../public/shared/actions.js';
+import { CHECK_IN_METHODS } from '../src/config/constants.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const load = (lang) => JSON.parse(readFileSync(path.join(root, 'public', 'i18n', `${lang}.json`), 'utf8'));
@@ -84,6 +90,31 @@ test('dynamic keys: every category, role, fatigue rule and API error code has a 
   for (const actor of ['worker', 'admin', 'system']) needed.push(`dispute.by.${actor}`);
   for (const id of COMPONENT_IDS) needed.push(`dws.component.${id}`, `dws.driver.${id}`, `dws.how.${id}`);
   for (const band of ['healthy', 'needs_attention', 'at_risk', 'unknown']) needed.push(`dws.band.${band}`);
+
+  for (const step of TOUR_STEPS) needed.push(`tour.step.${step.id}.title`, `tour.step.${step.id}.short`, `tour.step.${step.id}.text`);
+  for (const destination of DESTINATIONS) needed.push(destination.labelKey);
+  for (const theme of THEMES) needed.push(`theme.${theme}`);
+  needed.push('theme.toLight', 'theme.toDark', 'rest.level.amber', 'rest.level.red');
+  for (const name of ['records', 'disputes', 'reports', 'passport', 'grievances', 'disputesAdmin', 'compliance', 'fatigue', 'risk', 'skills', 'workers']) {
+    needed.push(`empty.${name}.title`, `empty.${name}.text`);
+  }
+  for (const size of TEXT_SIZES) needed.push(`me.size.${size}`);
+  // The offline outbox: every status, kind, check-in method, and every message the banner can show.
+  for (const status of Object.values(STATUS)) needed.push(`outbox.status.${status}`);
+  for (const method of CHECK_IN_METHODS) needed.push(`outbox.method.${method}`);
+  const ctx = { ownerId: 'w' };
+  for (const [kind, payload] of [['checkin', { method: 'button' }], ['checkout', {}], ['dispute', { shiftId: 's', category: 'other' }], ['report', { category: 'pay', text: 'x' }], ['report', { category: 'pay', text: 'x', anonymous: true }], ['feedback', { subject: 'manager', rating: 3 }]]) {
+    const { display } = specFor(kind, payload, ctx);
+    needed.push(display.labelKey, ...[display.categoryKey, display.subjectKey].filter(Boolean));
+  }
+  for (const count of [0, 1, 2]) {
+    for (const context of [{ online: false }, { online: true }, { online: true, needsSignIn: true }]) {
+      for (const items of [[], [{ status: 'queued' }], [{ status: 'syncing' }], [{ status: 'failed' }]]) {
+        const { messageKey } = describeQueue(count === 0 ? items : Array(count).fill(items[0] ?? { status: 'queued' }), context);
+        if (messageKey) needed.push(messageKey);
+      }
+    }
+  }
 
   const codes = new Set(['too_large', 'bad_json', 'server_error']);
   for (const file of sourceFiles(path.join(root, 'src'), '.js')) {

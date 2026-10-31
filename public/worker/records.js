@@ -1,9 +1,12 @@
-import { api } from '../shared/api.js';
+import { recordsWithWaitingDispute } from '../shared/actions.js';
 import { disputeChip } from '../shared/badges.js';
 import { busy, cancelButton, chip, field, h, iconButton, openDialog, showError, toast } from '../shared/dom.js';
 import { dateTimeIst, dayLabel, hoursMinutes, timeIst } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { outbox } from '../shared/outbox.js';
+import { outboxPanel, staleNotice } from '../shared/outbox-ui.js';
+import { emptyState } from '../shared/states.js';
 
 const IST = 'Asia/Kolkata';
 const DAY_MS = 24 * 60 * 60_000;
@@ -76,9 +79,10 @@ function openContestDialog(record, sites, onSent) {
         onclick: async (event) => {
           await busy(event.currentTarget, async () => {
             try {
-              await api('/disputes', { method: 'POST', body: buildBody() });
+              // Sent now with a signal; without one it is kept, with the time the worker filed it.
+              const { status } = await outbox.submit('dispute', buildBody());
               close();
-              toast(t('dispute.sent'));
+              toast(t(status === 'sent' ? 'dispute.sent' : 'outbox.savedToast'), status === 'sent' ? 'check' : 'clock');
               onSent();
             } catch (error) {
               showError(error);
@@ -90,8 +94,10 @@ function openContestDialog(record, sites, onSent) {
   });
 }
 
-function recordCard(record, sites, onSent) {
+function recordCard(record, sites, onSent, waiting) {
   const flags = [
+    record.recordedOffline ? chip('info', 'wifiOff', t('offline.badge')) : null,
+    waiting.has(record.id) ? chip('info', 'clock', t('outbox.status.queued')) : null,
     record.checkOut === null ? chip('warn', 'clock', t('records.notFinished')) : null,
     record.autoClosed ? chip('warn', 'gear', t('records.autoClosed')) : null,
     record.corrected ? chip('ok', 'check', t('records.corrected')) : null,
@@ -104,7 +110,7 @@ function recordCard(record, sites, onSent) {
     h('div', { class: 'row row-between' }, h('h3', { text: dayLabel(record.date) }), record.checkOut ? h('span', { text: hoursMinutes(minutes) }) : null),
     h('p', { class: 'muted', text: `${recordText(record)} · ${record.site}` }),
     h('div', { class: 'row' }, ...flags),
-    record.openDisputeId ? null : iconButton('alert', t('records.contest'), { onclick: () => openContestDialog(record, sites, onSent) }),
+    record.openDisputeId || waiting.has(record.id) ? null : iconButton('alert', t('records.contest'), { onclick: () => openContestDialog(record, sites, onSent) }),
   );
 }
 
@@ -138,17 +144,23 @@ function disputeCard(d) {
 
 /** Attendance records inside the dispute window, the worker's disputes with timelines, and the audit trail. */
 export async function renderRecords(session, rerender) {
-  const [{ records, sites, windowDays }, { items, audit }] = await Promise.all([api('/attendance/records'), api('/disputes')]);
+  const [recordsCopy, disputesCopy] = await Promise.all([outbox.cachedApi('/attendance/records'), outbox.cachedApi('/disputes')]);
+  const { records, sites, windowDays } = recordsCopy.data;
+  const { items, audit } = disputesCopy.data;
+  const waiting = recordsWithWaitingDispute(outbox.items());
+  const savedAt = Math.min(recordsCopy.savedAt ?? Infinity, disputesCopy.savedAt ?? Infinity);
   return h(
     'div',
     { class: 'stack' },
     h('h1', { text: t('records.title') }),
+    recordsCopy.stale || disputesCopy.stale ? staleNotice(savedAt) : null,
+    outboxPanel(),
     h('p', { class: 'muted', text: t('records.intro', { days: windowDays }) }),
     records.length === 0
-      ? h('p', { class: 'muted', text: t('records.none', { days: windowDays }) })
-      : h('ul', { class: 'stack' }, ...records.map((r) => recordCard(r, sites, rerender))),
+      ? emptyState({ iconName: 'calendar', title: t('empty.records.title'), text: t('empty.records.text', { days: windowDays }) })
+      : h('ul', { class: 'stack' }, ...records.map((r) => recordCard(r, sites, rerender, waiting))),
     h('h2', { class: 'row' }, icon('alert'), t('records.mine')),
-    items.length === 0 ? h('p', { class: 'muted', text: t('records.noDisputes') }) : h('ul', { class: 'stack' }, ...items.map(disputeCard)),
+    items.length === 0 ? emptyState({ iconName: 'shield', title: t('empty.disputes.title'), text: t('empty.disputes.text') }) : h('ul', { class: 'stack' }, ...items.map(disputeCard)),
     h(
       'details',
       { class: 'card' },
