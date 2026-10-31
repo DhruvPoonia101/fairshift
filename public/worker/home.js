@@ -1,8 +1,11 @@
-import { api } from '../shared/api.js';
+import { ApiError } from '../shared/api.js';
 import { cancelButton, chip, field, h, iconButton, openDialog, showError, toast, busy } from '../shared/dom.js';
 import { dayLabel, hoursMinutes, timeIst } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { overlayToday } from '../shared/actions.js';
+import { outbox } from '../shared/outbox.js';
+import { outboxPanel, staleNotice } from '../shared/outbox-ui.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const BAR_FULL_MINUTES = 12 * 60;
@@ -10,6 +13,7 @@ const SCAN_INTERVAL_MS = 300;
 const GEO_TIMEOUT_MS = 6000;
 const CODE_DIGITS = 6;
 const CODE_PATTERN = /^\d{6}$/;
+const NO_COPY = { status: 'not_started', since: null, totalMinutes: 0, overtimeMinutes: 0, rest: { level: 'none', flags: [] }, recent: [] };
 const canScan = 'BarcodeDetector' in window && Boolean(navigator.mediaDevices?.getUserMedia);
 
 /** Current position, or null if unavailable or refused (the geofence check is optional). */
@@ -71,6 +75,7 @@ function statusCard(today) {
       h('h2', { id: 'status-title', text }),
       today.totalMinutes > 0 ? h('p', { class: 'muted', text: t('home.sofar', { time: hoursMinutes(today.totalMinutes) }) }) : null,
       today.overtimeMinutes > 0 ? chip('info', 'clock', t('home.overtime', { time: hoursMinutes(today.overtimeMinutes) })) : null,
+      today.pending ? chip('info', 'clock', t('outbox.status.queued')) : null,
     ),
   );
 }
@@ -157,17 +162,28 @@ function openScanner(submit) {
 
 /** Worker home: today's status, one big check-in/out button, rest notice and the last 7 days. */
 export async function renderHome(session, rerender) {
-  const today = await api('/attendance/today');
+  // Works with no signal: the last good copy of today is shown, and what the worker does is kept in the outbox.
+  let copy;
+  try {
+    copy = await outbox.cachedApi('/attendance/today');
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    copy = { data: NO_COPY, stale: true, savedAt: null, none: true };
+  }
+  const today = overlayToday(copy.data, outbox.items());
 
-  async function submit(body) {
+  /** Check in or out: sent now when there is a signal, otherwise saved with the time and place it happened. */
+  async function act(kind, payload) {
     try {
-      await api('/attendance/check-in', { method: 'POST', body });
-      toast(t('home.checkedIn'));
+      const { status } = await outbox.submit(kind, payload);
+      const done = kind === 'checkin' ? 'home.checkedIn' : 'home.checkedOut';
+      toast(t(status === 'sent' ? done : 'outbox.savedToast'), status === 'sent' ? 'check' : 'clock');
       rerender();
     } catch (error) {
       showError(error);
     }
   }
+  const submit = (body) => act('checkin', body);
 
   const main = iconButton(
     today.status === 'working' ? 'logout' : 'check',
@@ -177,16 +193,10 @@ export async function renderHome(session, rerender) {
   main.addEventListener('click', () =>
     busy(main, async () => {
       if (today.status === 'working') {
-        try {
-          await api('/attendance/check-out', { method: 'POST' });
-          toast(t('home.checkedOut'));
-          rerender();
-        } catch (error) {
-          showError(error);
-        }
+        await act('checkout', {});
         return;
       }
-      const position = await getPosition();
+      const position = await getPosition(); // where the worker is when they tap, not when it is sent later
       if (!position) toast(t('home.noLocation'), 'info');
       await submit({ method: 'button', ...position });
     }),
@@ -197,6 +207,7 @@ export async function renderHome(session, rerender) {
     { class: 'stack' },
     h('h1', { text: t('home.greeting', { name: session.user.name }) }),
     h('p', { class: 'muted row' }, icon('pin'), `${session.user.site ?? ''}`),
+    copy.stale ? (copy.none ? h('div', { class: 'banner', role: 'note' }, icon('wifiOff'), h('p', { text: t('outbox.noCopy') })) : staleNotice(copy.savedAt)) : null,
     restNotice(today.rest),
     statusCard(today),
     main,
@@ -208,7 +219,8 @@ export async function renderHome(session, rerender) {
           canScan ? iconButton('qr', t('home.scan'), { onclick: () => openScanner(submit) }) : null,
           iconButton('lock', t('home.enterCode'), { onclick: () => openCodeDialog(submit) }),
         ),
-    weekList(today.recent),
+    outboxPanel(),
+    today.recent.length > 0 ? weekList(today.recent) : null,
     h('a', { class: 'btn btn-block', href: '#records' }, icon('alert'), t('home.contestLink')),
   );
 }

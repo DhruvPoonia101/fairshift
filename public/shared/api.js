@@ -14,13 +14,13 @@ const IN_APP = location.pathname.startsWith('/admin') || location.pathname.start
 /**
  * Same-origin JSON call. The session cookie is httpOnly, so the script never sees a token.
  * @param {string} path path under /api
- * @param {{ method?: string, body?: unknown }} [options]
+ * @param {{ method?: string, body?: unknown, as?: 'worker' | 'admin' }} [options] `as` names the session to use (default: this page's app)
  */
-export async function api(path, { method = 'GET', body } = {}) {
+export async function api(path, { method = 'GET', body, as = APP } = {}) {
   const response = await fetch(`/api${path}`, {
     method,
     credentials: 'same-origin',
-    headers: { 'x-fairshift-app': APP, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+    headers: { 'x-fairshift-app': as, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (response.status === 204) return null;

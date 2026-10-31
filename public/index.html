@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#0b5cad">
   <meta name="description" content="FairShift: clear pay, safe reporting and fair shifts for workers and employers.">
   <title data-i18n="landing.title">FairShift - Fair pay, safe work</title>
+  <script src="/shared/prefs-boot.js"></script>
   <link rel="stylesheet" href="/shared/base.css">
   <link rel="stylesheet" href="/landing.css">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -26,6 +27,7 @@
         <button type="button" class="btn btn-primary btn-lg" id="pick-worker" aria-expanded="false" aria-controls="panel-worker" data-role="worker"><span data-i18n="landing.worker">I am a worker</span></button>
         <button type="button" class="btn btn-lg" id="pick-admin" aria-expanded="false" aria-controls="panel-admin" data-role="admin"><span data-i18n="landing.employer">I am an employer</span></button>
       </div>
+      <div id="tour-slot" class="row"></div>
       <p id="need" class="banner" role="status" hidden></p>
       <section id="panel-worker" class="card stack" hidden aria-labelledby="pick-worker"></section>
       <section id="panel-admin" class="card stack" hidden aria-labelledby="pick-admin"></section>
@@ -33,12 +35,12 @@
 
     <section class="stack" aria-labelledby="feat-title">
       <h2 id="feat-title" data-i18n="landing.featuresTitle">What FairShift does</h2>
-      <ul class="grid" id="features"></ul>
+      <ul class="grid" id="features"><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li><li class="skel skel-card" aria-hidden="true"></li></ul>
     </section>
 
     <section class="stack" aria-labelledby="ind-title">
       <h2 id="ind-title" data-i18n="landing.industriesTitle">Three industries, one app</h2>
-      <div class="grid" id="industries"></div>
+      <div class="grid" id="industries"><div class="skel skel-card" aria-hidden="true"></div><div class="skel skel-card" aria-hidden="true"></div><div class="skel skel-card" aria-hidden="true"></div></div>
       <p class="muted" data-i18n="landing.more">The same app can serve factories too: only the settings change, not the code.</p>
     </section>
   </main>

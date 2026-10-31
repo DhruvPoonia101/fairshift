@@ -2,8 +2,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { loadEnv } from './config/env.js';
+import { buildPrecacheList } from './lib/precache.js';
 import { systemClock } from './lib/time.js';
-import { createSessions } from './middleware/auth.js';
+import { createAnonTokens, createSessions } from './middleware/auth.js';
+import { gzipStatic } from './middleware/static-gzip.js';
 import { apiNotFound, errorHandler } from './middleware/errors.js';
 import {
   DEFAULT_LIMITS,
@@ -50,6 +52,7 @@ export function createApp({
   assertRepository(store);
   const services = createServices({ store, clock, env, fetchImpl });
   const sessions = createSessions({ secret: env.sessionSecret, isProduction: env.isProduction });
+  const anonTokens = createAnonTokens({ secret: env.sessionSecret, clock });
   const limiters = {
     global: createLimiter(limits.global),
     login: createLimiter(limits.login, { countFailuresOnly: true }),
@@ -84,7 +87,7 @@ export function createApp({
     next();
   });
   api.use(sameOriginWrites, requireJsonBody, express.json({ limit: JSON_BODY_LIMIT }), sessions.authenticate);
-  const deps = { store, services, sessions, env, limiters, clock };
+  const deps = { store, services, sessions, anonTokens, env, limiters, clock };
   api.use(authRoutes(deps));
   api.use(attendanceRoutes(deps));
   api.use(payslipRoutes(deps));
@@ -97,8 +100,14 @@ export function createApp({
   api.use(apiNotFound);
   app.use('/api', api);
 
+  // What the service worker stores so the worker app opens with no signal. Built from the files themselves, so it cannot drift.
+  app.get('/precache.json', (req, res) => {
+    res.set('Cache-Control', 'no-store').json(buildPrecacheList(PUBLIC_DIR));
+  });
+
   app.get('/p/:token', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'passport', 'index.html')));
   // no-cache = always revalidate (cheap 304 via ETag), so a new release is never hidden behind a stale cached script.
+  app.use(gzipStatic(PUBLIC_DIR));
   app.use(express.static(PUBLIC_DIR, { setHeaders: (res) => res.set('Cache-Control', 'no-cache') }));
   app.use((req, res) => res.status(404).type('text/plain').send('Not found'));
   app.use(errorHandler(logError));

@@ -59,11 +59,11 @@ export function createAttendanceService({ store, clock, credentials, audit, skip
     return open[0] ?? null;
   }
 
-  async function resolveSite(worker, { method, token, code }) {
+  async function resolveSite(worker, { method, token, code }, atMs) {
     const sites = await store.sites.query(worker.orgId);
     let site = null;
-    if (method === 'qr') site = credentials.verifyToken(token, sites);
-    else if (method === 'code') site = credentials.findSiteByCode(sites, code);
+    if (method === 'qr') site = credentials.verifyToken(token, sites, atMs);
+    else if (method === 'code') site = credentials.findSiteByCode(sites, code, atMs);
     else site = sites.find((s) => s.id === worker.siteId) ?? null;
     if (!site) throw unprocessable('invalid_code', 'That code is not valid today.');
     return site;
@@ -80,6 +80,14 @@ export function createAttendanceService({ store, clock, credentials, audit, skip
     return true;
   }
 
+  /** A check-in sent late must not land inside, or before, a shift that was recorded in the meantime. */
+  async function assertNoOverlap(worker, at) {
+    const later = await shiftsSince(worker, at - 24 * 60 * MS_PER_MINUTE);
+    if (later.some((s) => s.checkIn >= at || (s.checkOut ?? Infinity) > at)) {
+      throw conflict('already_checked_in', 'You already have a record for that time.');
+    }
+  }
+
   async function shiftsSince(worker, fromMs) {
     return store.shifts.query(worker.orgId, {
       where: { workerId: worker.id },
@@ -91,13 +99,20 @@ export function createAttendanceService({ store, clock, credentials, audit, skip
     /**
      * Starts a shift. `method` says how presence was proved: scanned QR, typed daily code, or button.
      * A forgotten open shift older than 18 h is closed automatically so it cannot inflate hours.
+     *
+     * `capture` (see lib/capture.js) is set when the check-in was made without a signal and is sent later:
+     * the shift starts when the worker checked in, not when we heard about it. The QR or code is still
+     * checked now, against the day it was scanned, so a QR from another day is refused with a clear reason.
+     * @param {{ capturedAt: number, receivedAt: number, recordedOffline: boolean }} [capture]
+     * @param {string} [id] a stable id, so a retried request writes the same shift
      */
-    async checkIn(worker, input) {
+    async checkIn(worker, input, capture, id) {
       const now = clock.now();
-      const site = await resolveSite(worker, input);
+      const at = capture?.capturedAt ?? now;
+      const site = await resolveSite(worker, input, at);
       const geoVerified = await checkGeofence(worker, site, input);
       const open = await findOpenShift(worker);
-      if (open && !isStale(open, now)) {
+      if (open && !isStale(open, at)) {
         throw conflict('already_checked_in', 'You are already checked in.');
       }
       if (open) {
@@ -114,22 +129,34 @@ export function createAttendanceService({ store, clock, credentials, audit, skip
           after: { checkIn: open.checkIn, checkOut, siteId: open.siteId },
         });
       }
+      if (capture?.recordedOffline) await assertNoOverlap(worker, at);
       return store.shifts.insert({
-        id: newId('sh'),
+        id: id ?? newId('sh'),
         orgId: worker.orgId,
         workerId: worker.id,
         siteId: site.id,
-        checkIn: now,
+        checkIn: at,
         checkOut: null,
         method: input.method,
         geoVerified,
+        ...(capture?.recordedOffline ? { recordedOffline: true, capturedAt: capture.capturedAt, receivedAt: capture.receivedAt } : {}),
       });
     },
 
-    async checkOut(worker) {
+    /** Ends the open shift. With `capture`, it ends when the worker left, not when we heard about it. */
+    async checkOut(worker, capture) {
       const open = await findOpenShift(worker);
       if (!open) throw conflict('not_checked_in', 'You have not checked in.');
-      return store.shifts.update(worker.orgId, open.id, { checkOut: clock.now() });
+      if (!capture?.recordedOffline) return store.shifts.update(worker.orgId, open.id, { checkOut: clock.now() });
+      if (capture.capturedAt <= open.checkIn) {
+        throw unprocessable('check_out_before_check_in', 'The check-out is before the check-in.');
+      }
+      return store.shifts.update(worker.orgId, open.id, {
+        checkOut: capture.capturedAt,
+        recordedOffline: true,
+        checkOutCapturedAt: capture.capturedAt,
+        checkOutReceivedAt: capture.receivedAt,
+      });
     },
 
     /** Today's status for the worker home screen. */

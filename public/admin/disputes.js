@@ -1,9 +1,10 @@
 import { api } from '../shared/api.js';
 import { disputeChip } from '../shared/badges.js';
-import { busy, cancelButton, field, h, iconButton, openDialog, showError, toast } from '../shared/dom.js';
+import { busy, cancelButton, chip, field, h, iconButton, openDialog, showError, toast } from '../shared/dom.js';
 import { dateIst, dateTimeIst, hoursMinutes, monthLabel, timeIst } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { emptyState } from '../shared/states.js';
 
 const recordText = (r) => (r ? `${timeIst(r.checkIn)} – ${r.checkOut ? timeIst(r.checkOut) : '…'}` : '–');
 
@@ -103,9 +104,9 @@ function row(dispute, onDone) {
     h('th', { scope: 'row', text: dispute.worker?.name ?? '' }),
     h('td', { text: dateIst(dispute.original.checkIn) }),
     h('td', { text: t(`dispute.cat.${dispute.category}`) }),
-    h('td', { text: recordText(dispute.original) }),
+    h('td', {}, h('p', { text: recordText(dispute.original) }), dispute.shiftRecordedOffline ? chip('info', 'wifiOff', t('offline.badge')) : null),
     h('td', { text: dispute.claimed ? `${recordText(dispute.claimed)}${siteChange}` : '–' }),
-    h('td', { class: 'cell-wide' }, h('p', { text: dispute.note }), dispute.decisionNote ? h('p', { class: 'muted', text: `${t('dispute.decisionNote')}: ${dispute.decisionNote}` }) : null, history(dispute)),
+    h('td', { class: 'cell-wide' }, h('p', { text: dispute.note }), dispute.recordedOffline ? chip('info', 'wifiOff', t('offline.badge')) : null, dispute.decisionNote ? h('p', { class: 'muted', text: `${t('dispute.decisionNote')}: ${dispute.decisionNote}` }) : null, history(dispute)),
     h('td', {}, disputeChip(dispute.status)),
     h('td', {}, actions(dispute, onDone)),
   );
@@ -121,7 +122,7 @@ export async function renderDisputes(session, rerender) {
     h('h1', { text: t('disputesAdmin.title') }),
     h('div', { class: 'banner ok' }, icon('shield'), h('p', { text: t('disputesAdmin.intro') })),
     items.length === 0
-      ? h('p', { class: 'muted', text: t('disputesAdmin.none') })
+      ? emptyState({ iconName: 'calendar', title: t('empty.disputesAdmin.title'), text: t('empty.disputesAdmin.text') })
       : h('div', { class: 'card table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ...heads)), h('tbody', {}, ...items.map((d) => row(d, rerender))))),
   );
 }

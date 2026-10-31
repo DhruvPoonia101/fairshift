@@ -24,6 +24,17 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
+/**
+ * Replaces everything inside `parent` with `children`. Unlike the DOM's own replaceChildren, which turns a
+ * null, undefined or false argument into the TEXT "null" / "undefined" / "false", this skips them (as h() does),
+ * so `fill(slot, condition ? button : null)` shows nothing when the condition is false.
+ * @param {{ replaceChildren: (...nodes: (Node | string)[]) => void }} parent
+ * @param {...(Node | string | null | undefined | false)} children
+ */
+export function fill(parent, ...children) {
+  parent.replaceChildren(...children.flat().filter((child) => child !== null && child !== undefined && child !== false));
+}
+
 /** Button with a leading icon and a visible text label. */
 export function iconButton(iconName, label, props = {}) {
   const { class: cls = 'btn', ...rest } = props;

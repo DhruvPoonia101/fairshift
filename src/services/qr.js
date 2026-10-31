@@ -24,17 +24,20 @@ export function createSiteCredentials({ secret, clock }) {
 
   return {
     /** Token format: `<siteId>.<day>.<signature>`. */
-    issueToken(site) {
-      const day = dayKey(clock.now());
+    issueToken(site, atMs = clock.now()) {
+      const day = dayKey(atMs);
       const sig = mac('qr', site, day).subarray(0, TOKEN_SIGNATURE_BYTES).toString('base64url');
       return `${site.id}.${day}.${sig}`;
     },
 
-    /** Returns the matching site from `sites`, or null if forged, expired or foreign. */
-    verifyToken(token, sites) {
+    /**
+     * Returns the matching site from `sites`, or null if forged, expired or foreign. `atMs` is the moment
+     * the QR was scanned: a check-in made without a signal is checked when it is sent, but against the day it was scanned.
+     */
+    verifyToken(token, sites, atMs = clock.now()) {
       if (typeof token !== 'string') return null;
       const [siteId, day, sig, ...extra] = token.split('.');
-      if (!sig || extra.length > 0 || day !== dayKey(clock.now())) return null;
+      if (!sig || extra.length > 0 || day !== dayKey(atMs)) return null;
       const site = sites.find((s) => s.id === siteId);
       if (!site) return null;
       const expected = mac('qr', site, day).subarray(0, TOKEN_SIGNATURE_BYTES).toString('base64url');
@@ -42,13 +45,13 @@ export function createSiteCredentials({ secret, clock }) {
     },
 
     /** Six-digit code for today, easy to read out or type on a basic phone. */
-    dailyCode(site) {
-      const n = mac('code', site, dayKey(clock.now())).readUInt32BE(0) % CODE_MODULUS;
+    dailyCode(site, atMs = clock.now()) {
+      const n = mac('code', site, dayKey(atMs)).readUInt32BE(0) % CODE_MODULUS;
       return String(n).padStart(CHECK_IN_CODE_DIGITS, '0');
     },
 
-    findSiteByCode(sites, code) {
-      return sites.find((site) => safeEqual(String(code), this.dailyCode(site))) ?? null;
+    findSiteByCode(sites, code, atMs = clock.now()) {
+      return sites.find((site) => safeEqual(String(code), this.dailyCode(site, atMs))) ?? null;
     },
 
     /** QR code as an SVG string (no external service involved). */

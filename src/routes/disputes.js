@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { DISPUTE } from '../config/constants.js';
+import { resolveCapture } from '../lib/capture.js';
 import { notFound } from '../lib/errors.js';
 import { requireAdmin, requireWorker } from '../middleware/auth.js';
+import { assertOwner, respondIdempotent } from '../middleware/offline.js';
 import { v, validateBody, validateParams } from '../middleware/validate.js';
 
 const MS_PER_YEAR_LIMIT = 4_102_444_800_000; // 2100-01-01: a sanity bound on claimed times
@@ -13,11 +15,12 @@ const disputeSchema = {
   checkOutAt: v.int({ min: 0, max: MS_PER_YEAR_LIMIT, optional: true }),
   siteId: v.id({ optional: true }),
   note: v.string({ min: 0, max: DISPUTE.MAX_NOTE_LENGTH, optional: true }),
+  capturedAt: v.int({ min: 0, max: MS_PER_YEAR_LIMIT, optional: true }),
 };
 
 /** @param {{ store: object, services: object, limiters: { report: Function } }} deps */
-export function disputeRoutes({ store, services, limiters }) {
-  const { disputes } = services;
+export function disputeRoutes({ store, services, limiters, clock }) {
+  const { disputes, idempotency } = services;
   const router = Router();
 
   const loadWorker = async (user) => {
@@ -31,8 +34,12 @@ export function disputeRoutes({ store, services, limiters }) {
     res.json(await disputes.recordsFor(await loadWorker(req.user)));
   });
 
-  router.post('/disputes', requireWorker, limiters.report, validateBody(disputeSchema), async (req, res) => {
-    res.status(201).json(await disputes.submit(await loadWorker(req.user), req.body));
+  router.post('/disputes', requireWorker, assertOwner, limiters.report, validateBody(disputeSchema), async (req, res) => {
+    const worker = await loadWorker(req.user);
+    await respondIdempotent(req, res, { idempotency, kind: 'dispute', scope: `w:${worker.id}`, orgId: worker.orgId, body: req.body }, async ({ idFor }) => {
+      const capture = resolveCapture(req.body.capturedAt, clock.now());
+      return { status: 201, body: await disputes.submit(worker, req.body, capture, idFor('dp')) };
+    });
   });
 
   router.get('/disputes', requireWorker, async (req, res) => {

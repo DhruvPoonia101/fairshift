@@ -7,4 +7,5 @@ main { padding-top: 1.5rem; padding-bottom: 2rem; gap: 2rem; outline: none; }
 .feature svg.icon { width: 2rem; height: 2rem; color: var(--primary); }
 .industry ul { list-style: disc; padding-inline-start: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .demo-note { font-size: 0.9375rem; }
-.foot { padding-bottom: 2rem; }
+.foot { padding-bottom: var(--space-6); }
+#tour-slot:empty { display: none; }

@@ -1,13 +1,24 @@
 /* Worker app: mobile first, thumb-friendly. */
-body { padding-bottom: 5.5rem; }
-main { padding-top: 1rem; padding-bottom: 1rem; max-width: 40rem; outline: none; }
-main > .stack { gap: 1.25rem; }
+body { --tour-bottom: 5.5rem; padding-bottom: 6rem; }
+main { padding-top: var(--space-4); padding-bottom: var(--space-4); max-width: 40rem; min-height: 60vh; outline: none; }
+main > .stack { gap: var(--space-5); }
 
 .tabbar { position: fixed; inset: auto 0 0 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--line); }
-.tabbar ul { display: grid; grid-template-columns: repeat(5, 1fr); max-width: 40rem; margin: 0 auto; }
-.tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; min-height: 4rem; padding: 0.25rem; color: var(--muted); text-decoration: none; font-size: 0.8125rem; font-weight: 600; border-top: 4px solid transparent; }
-.tabbar a[aria-current="page"] { color: var(--primary); border-top-color: var(--primary); background: var(--primary-soft); }
+.tabbar ul { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 40rem; margin: 0 auto; }
+.tabbar { padding-bottom: env(safe-area-inset-bottom); }
+.tabbar a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; min-height: 4.5rem; padding: var(--space-1); color: var(--muted); text-decoration: none; font-size: var(--fs-sm); font-weight: 600; border-top: 4px solid transparent; }
+.tabbar svg.icon { width: 1.875rem; height: 1.875rem; }
+.tabbar a[aria-current="page"] { color: var(--primary); border-top-color: var(--primary); background: var(--primary-soft); font-weight: 800; }
+/* The current tab is marked by a bar, a heavier icon and an underlined label, so colour is never the only cue. */
+.tabbar a[aria-current="page"] svg.icon { stroke-width: 3; }
+.tabbar a[aria-current="page"] span { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 0.25rem; }
 .tabbar a span { text-align: center; line-height: 1.1; overflow-wrap: anywhere; }
+.size-sample { font-weight: 800; line-height: 1; }
+.size-large { font-size: 1.25rem; }
+.size-xlarge { font-size: 1.5rem; }
+.seg { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.seg .btn[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.menu-link { justify-content: flex-start; text-align: start; }
 
 .status-card { display: flex; gap: 1rem; align-items: center; }
 .status-card svg.icon { width: 3rem; height: 3rem; color: var(--primary); }
@@ -31,7 +42,18 @@ input:checked + .cat-face, input:checked + .face-inner { background: var(--prima
 input:checked + .cat-face::after { content: "✓"; position: absolute; top: 0.25rem; inset-inline-end: 0.5rem; font-weight: 800; color: var(--primary); }
 input:focus-visible + .cat-face, input:focus-visible + .face-inner { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-.track-code { font-size: 1.75rem; font-weight: 800; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; text-align: center; padding: 1rem; background: var(--primary-soft); border-radius: var(--radius); user-select: all; }
+.track-code { font-size: clamp(1.15rem, 5.4vw, 1.75rem); overflow-wrap: anywhere; font-weight: 800; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; text-align: center; padding: 1rem; background: var(--primary-soft); border-radius: var(--radius); user-select: all; }
 .link-box { word-break: break-all; padding: 0.75rem; background: var(--primary-soft); border-radius: var(--radius); }
 .payline h3 { font-size: 1.0625rem; }
 .item-list > li { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* ---- Offline outbox: banner, waiting actions ---------------------------------------------------------------- */
+.outbox-banner { margin-bottom: var(--space-3); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border: 2px solid currentColor; border-radius: var(--radius); background: var(--warn-soft); color: var(--warn); }
+.outbox-banner[hidden] { display: none; }
+.outbox-banner strong { color: var(--text); }
+.outbox-banner.outbox-pending, .outbox-banner.outbox-syncing { background: var(--primary-soft); color: var(--primary); }
+.outbox-banner.outbox-failed, .outbox-banner.outbox-signin { background: var(--danger-soft); color: var(--danger); }
+.outbox-message { flex: 1 1 13rem; flex-wrap: nowrap; }
+.outbox-lead svg.icon { width: 1.75rem; height: 1.75rem; }
+.outbox-item[data-status="failed"] { border-color: var(--danger); }
+.outbox-error { color: var(--danger); font-weight: 600; }

@@ -43,14 +43,16 @@ export function createFeedbackService({ store, clock }) {
      * Stores a rating with NO worker id, no IP and only the day (not the time).
      * The prototype cannot stop one worker voting twice; production would use blind tokens.
      */
-    async submit(orgId, { subject, rating, text }) {
+    async submit(orgId, { subject, rating, text }, { id, capturedAt } = {}) {
       await store.feedback.insert({
-        id: newId('fb'),
+        id: id ?? newId('fb'),
         orgId,
         subject,
         rating,
         text,
-        day: dayKey(clock.now()),
+        // The day it was given. Anonymous feedback sent late keeps the day the worker gave it, and is
+        // deliberately NOT marked "offline": a flag would shrink the group it hides in.
+        day: dayKey(capturedAt ?? clock.now()),
       });
     },
 

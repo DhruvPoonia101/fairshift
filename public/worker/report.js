@@ -1,9 +1,13 @@
-import { api } from '../shared/api.js';
+import { ApiError, api } from '../shared/api.js';
 import { severityChip, statusChip } from '../shared/badges.js';
 import { busy, field, h, iconButton, openDialog, showError, toast } from '../shared/dom.js';
 import { dateTimeIst } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { outbox } from '../shared/outbox.js';
+import { outboxPanel, staleNotice } from '../shared/outbox-ui.js';
+import { formatTrackingCode } from '../shared/tracking-code.js';
+import { emptyState } from '../shared/states.js';
 import { dictationButton } from '../shared/voice.js';
 
 function categoryPicker(categories) {
@@ -18,10 +22,11 @@ function categoryPicker(categories) {
   return h('fieldset', { class: 'stack-sm' }, h('legend', { text: t('report.pick') }), h('div', { class: 'cats' }, ...radios));
 }
 
-function showTrackingCode(code) {
+function showTrackingCode(code, waiting) {
   openDialog({
-    title: t('report.sentAnon'),
+    title: t(waiting ? 'outbox.reportSavedAnon' : 'report.sentAnon'),
     body: [
+      waiting ? h('p', { text: t('outbox.savedToast') }) : null,
       h('p', { text: t('report.codeHelp') }),
       h('p', { class: 'track-code', text: code }),
       h('p', { class: 'muted', text: t('report.codeKeep') }),
@@ -67,7 +72,7 @@ function trackForm() {
 }
 
 function myReports(items) {
-  if (items.length === 0) return h('p', { class: 'muted', text: t('report.none') });
+  if (items.length === 0) return emptyState({ iconName: 'alert', title: t('empty.reports.title'), text: t('empty.reports.text') });
   return h(
     'ul',
     { class: 'stack item-list' },
@@ -85,7 +90,14 @@ function myReports(items) {
 
 /** Report tab: pick an icon, say it by text or voice, optionally stay anonymous. */
 export async function renderReport(session, rerender) {
-  const { items } = await api('/grievances');
+  let copy;
+  try {
+    copy = await outbox.cachedApi('/grievances');
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    copy = { data: { items: [] }, stale: true, savedAt: null, none: true }; // no signal and nothing saved: the form still works
+  }
+  const { items } = copy.data;
   const text = h('textarea', { id: 'report-text', maxlength: 1000, required: true });
   const anon = h('input', { type: 'checkbox', id: 'report-anon' });
   const mic = dictationButton(text);
@@ -109,9 +121,11 @@ export async function renderReport(session, rerender) {
         return;
       }
       try {
-        const sent = await api('/grievances', { method: 'POST', body: { category, text: text.value, anonymous: anon.checked } });
-        if (sent.trackingCode) showTrackingCode(sent.trackingCode);
-        else toast(t('report.sent'));
+        // An anonymous report gets its tracking code on this phone, at once, so it can be shown even with no signal.
+        const sent = await outbox.submit('report', { category, text: text.value, anonymous: anon.checked });
+        const waiting = sent.status === 'queued';
+        if (sent.item.trackingCode) showTrackingCode(formatTrackingCode(sent.item.trackingCode), waiting);
+        else toast(t(waiting ? 'outbox.savedToast' : 'report.sent'), waiting ? 'clock' : 'check');
         form.reset();
         rerender();
       } catch (error) {
@@ -125,6 +139,8 @@ export async function renderReport(session, rerender) {
     { class: 'stack' },
     h('h1', { text: t('report.title') }),
     h('p', { class: 'muted', text: t('report.intro') }),
+    copy.stale && !copy.none ? staleNotice(copy.savedAt) : null,
+    outboxPanel(),
     form,
     trackForm(),
     h('h2', { class: 'row' }, icon('alert'), t('report.mine')),

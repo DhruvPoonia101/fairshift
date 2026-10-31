@@ -1,7 +1,8 @@
-import { api } from '../shared/api.js';
 import { busy, field, h, iconButton, showError, toast } from '../shared/dom.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { outbox } from '../shared/outbox.js';
+import { outboxPanel } from '../shared/outbox-ui.js';
 import { dictationButton } from '../shared/voice.js';
 
 const SUBJECTS = [
@@ -45,11 +46,14 @@ export async function renderFeedback() {
         return;
       }
       try {
+        // Feedback is anonymous: it is sent with no sign-in on the request, and kept with no name if there is no signal.
+        let waiting = false;
         for (const s of rated) {
-          await api('/feedback', { method: 'POST', body: { subject: s.id, rating: Number(data.get(s.id)), text: data.get(`${s.id}-text`) } });
+          const sent = await outbox.submit('feedback', { subject: s.id, rating: Number(data.get(s.id)), text: data.get(`${s.id}-text`) });
+          waiting ||= sent.status === 'queued';
         }
         form.reset();
-        toast(t('feedback.thanks'));
+        toast(t(waiting ? 'outbox.savedToast' : 'feedback.thanks'), waiting ? 'clock' : 'check');
       } catch (error) {
         showError(error);
       }
@@ -60,6 +64,7 @@ export async function renderFeedback() {
     { class: 'stack' },
     h('h1', { text: t('feedback.title') }),
     h('div', { class: 'banner ok' }, icon('lock'), h('p', { text: t('feedback.privacy') })),
+    outboxPanel(),
     form,
   );
 }

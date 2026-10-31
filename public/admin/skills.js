@@ -4,6 +4,7 @@ import { busy, cancelButton, field, h, iconButton, openDialog, showError, toast 
 import { dayLabel } from '../shared/format.js';
 import { icon } from '../shared/icons.js';
 import { t } from '../shared/i18n.js';
+import { emptyState } from '../shared/states.js';
 
 const TYPES = ['training', 'certification', 'experience'];
 
@@ -81,6 +82,8 @@ export async function renderSkills(session, rerender) {
       h('div', { class: 'banner', role: 'note' }, icon('alert'), h('p', { text: t(e.expiry === 'expired' ? 'skills.expiredWarn' : 'skills.expiringWarn', { name: e.workerName, title: e.title, date: dayLabel(e.expiresOn, false) }) })),
     ),
     h('div', { class: 'row' }, iconButton('plus', t('skills.add'), { class: 'btn btn-primary', onclick: () => openAddDialog(rerender) })),
-    h('div', { class: 'card table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ...heads)), h('tbody', {}, ...entries.map((e) => entryRow(e, rerender))))),
+    entries.length === 0
+      ? emptyState({ iconName: 'badge', title: t('empty.skills.title'), text: t('empty.skills.text') })
+      : h('div', { class: 'card table-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ...heads)), h('tbody', {}, ...entries.map((e) => entryRow(e, rerender))))),
   );
 }
